@@ -1,0 +1,290 @@
+:root {
+  font-family:
+    Arial,
+    Helvetica,
+    sans-serif;
+
+  color: #1f2937;
+  background: #f3f4f6;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+.app {
+  width: min(1500px, 100%);
+  margin: 0 auto;
+  padding: 24px;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 24px;
+  margin-bottom: 18px;
+}
+
+.header h1 {
+  margin: 0;
+  font-size: 28px;
+}
+
+.header p {
+  margin: 4px 0 0;
+  color: #6b7280;
+}
+
+.date-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.date-controls button,
+.date-controls input {
+  min-height: 40px;
+  padding: 8px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: white;
+}
+
+.schedule-card {
+  overflow-x: auto;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: white;
+}
+
+.schedule {
+  min-width: 1250px;
+}
+
+.schedule-header,
+.resource-row {
+  display: grid;
+  grid-template-columns: 190px 1fr;
+}
+
+.corner-cell,
+.resource-name {
+  position: sticky;
+  left: 0;
+  z-index: 4;
+  border-right: 1px solid #cbd5e1;
+  background: #f8fafc;
+}
+
+.corner-cell {
+  height: 52px;
+  border-bottom: 1px solid #cbd5e1;
+}
+
+.timeline-header {
+  position: relative;
+  height: 52px;
+  border-bottom: 1px solid #cbd5e1;
+  background: #f8fafc;
+}
+
+.hour-label {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  padding: 16px 6px;
+  border-left: 1px solid #dbe3ec;
+  font-size: 13px;
+  white-space: nowrap;
+  transform: translateX(-1px);
+}
+
+.resource-name {
+  display: flex;
+  align-items: center;
+  min-height: 92px;
+  padding: 16px;
+  font-weight: 600;
+  color: #0369a1;
+}
+
+.timeline-row {
+  position: relative;
+  min-height: 92px;
+  cursor: crosshair;
+  background-image:
+    linear-gradient(
+      to right,
+      #dbe3ec 1px,
+      transparent 1px
+    ),
+    linear-gradient(
+      to right,
+      #edf2f7 1px,
+      transparent 1px
+    );
+
+  background-size:
+    calc(100% / 12) 100%,
+    calc(100% / 48) 100%;
+}
+
+.resource-row:not(:last-child) {
+  border-bottom: 1px solid #cbd5e1;
+}
+
+.reservation {
+  position: absolute;
+  top: 15px;
+  height: 62px;
+  min-width: 24px;
+  overflow: hidden;
+
+  padding: 8px 10px;
+
+  border: 0;
+  border-radius: 5px;
+
+  color: white;
+  background: #0369a1;
+
+  text-align: left;
+  line-height: 1.3;
+
+  box-shadow: 0 1px 3px rgb(0 0 0 / 20%);
+}
+
+.reservation:hover {
+  filter: brightness(0.92);
+}
+
+.reservation-title {
+  display: block;
+  overflow: hidden;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.reservation-details {
+  display: block;
+  overflow: hidden;
+  margin-top: 3px;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.status-message {
+  min-height: 24px;
+  margin-top: 12px;
+  color: #475569;
+}
+
+dialog {
+  width: min(500px, calc(100% - 30px));
+  padding: 0;
+  border: 0;
+  border-radius: 10px;
+  box-shadow: 0 20px 60px rgb(0 0 0 / 30%);
+}
+
+dialog::backdrop {
+  background: rgb(15 23 42 / 50%);
+}
+
+dialog form {
+  padding: 24px;
+}
+
+dialog h2 {
+  margin-top: 0;
+}
+
+dialog label {
+  display: block;
+  margin-bottom: 16px;
+  font-weight: 600;
+}
+
+dialog input {
+  width: 100%;
+  margin-top: 6px;
+  padding: 10px;
+
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+}
+
+.time-inputs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.dialog-buttons {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 22px;
+}
+
+.dialog-buttons button {
+  padding: 9px 16px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+}
+
+.button-spacer {
+  flex: 1;
+}
+
+.primary-button {
+  color: white;
+  border-color: #0369a1 !important;
+  background: #0369a1;
+}
+
+.danger-button {
+  color: white;
+  border-color: #b91c1c !important;
+  background: #b91c1c;
+}
+
+.hidden {
+  display: none;
+}
+
+.form-error {
+  min-height: 20px;
+  color: #b91c1c;
+}
+
+@media (max-width: 720px) {
+  .app {
+    padding: 12px;
+  }
+
+  .header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .time-inputs {
+    grid-template-columns: 1fr;
+  }
+}
