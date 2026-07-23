@@ -11,13 +11,12 @@
   <title>Pickel Lab Equipment Schedule</title>
 
   <!--
-    Change the version number when Teams keeps loading old CSS.
-    Example:
-    style.css?v=20260723-2
+    修改代码后，可以递增版本号，强制 Teams 加载新文件。
+    例如从 v=6 改为 v=7。
   -->
   <link
     rel="stylesheet"
-    href="style.css?v=20260723-3"
+    href="style.css?v=6"
   >
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -66,7 +65,10 @@
       </div>
     </div>
 
-    <section class="schedule-card">
+    <section
+      id="schedule-card"
+      class="schedule-card"
+    >
       <div
         id="schedule"
         class="schedule"
@@ -81,6 +83,7 @@
   </main>
 
   <dialog id="reservation-dialog">
+
     <form id="reservation-form">
 
       <h2 id="dialog-title">
@@ -195,11 +198,9 @@
       </div>
 
     </form>
+
   </dialog>
 
-  <!--
-    Change the version number when Teams keeps loading old JavaScript.
-  -->
-  <script src="app.js?v=20260723-3"></script>
+  <script src="app.js?v=6"></script>
 </body>
 </html>

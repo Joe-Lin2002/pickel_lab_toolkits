@@ -28,18 +28,21 @@ const resources = [
 ];
 
 /*
-  Visible schedule range:
+  Schedule range:
   8:00 AM to 6:00 PM
 
-  6 PM is a valid booking end time,
-  but it is not displayed as a header label.
+  6 PM is allowed as an end time,
+  but is not displayed in the header.
 */
 
 const DISPLAY_START_HOUR = 8;
 const DISPLAY_END_HOUR = 18;
 
+const HOURS_VISIBLE =
+  DISPLAY_END_HOUR - DISPLAY_START_HOUR;
+
 const DISPLAY_MINUTES =
-  (DISPLAY_END_HOUR - DISPLAY_START_HOUR) * 60;
+  HOURS_VISIBLE * 60;
 
 /*
   HTML elements
@@ -47,6 +50,9 @@ const DISPLAY_MINUTES =
 
 const scheduleElement =
   document.querySelector("#schedule");
+
+const scheduleCard =
+  document.querySelector("#schedule-card");
 
 const datePicker =
   document.querySelector("#date-picker");
@@ -92,6 +98,8 @@ const deleteButton =
 
 let currentReservations = [];
 
+let scheduleResizeObserver = null;
+
 /*
   Start application
 */
@@ -104,8 +112,10 @@ async function initialize() {
 
   attachEventListeners();
 
+  initializeResponsiveSchedule();
+
   /*
-    Render the empty schedule immediately.
+    Render empty schedule first.
   */
 
   renderSchedule();
@@ -175,7 +185,7 @@ function attachEventListeners() {
   );
 
   /*
-    Close dialog when the user clicks outside it.
+    Close dialog when clicking backdrop.
   */
 
   dialog.addEventListener(
@@ -185,6 +195,123 @@ function attachEventListeners() {
         dialog.close();
       }
     }
+  );
+}
+
+/*
+  Responsive schedule sizing
+
+  Teams embeds the page inside an iframe.
+  ResizeObserver watches the actual schedule-card width,
+  including when the Teams window or sidebar changes size.
+*/
+
+function initializeResponsiveSchedule() {
+  const root =
+    document.documentElement;
+
+  function updateScheduleDimensions() {
+    const availableWidth =
+      Math.max(
+        0,
+        scheduleCard.clientWidth
+      );
+
+    /*
+      Select equipment-column width based on
+      the actual iframe/container width.
+    */
+
+    let resourceColumnWidth = 145;
+
+    if (availableWidth < 850) {
+      resourceColumnWidth = 130;
+    }
+
+    if (availableWidth < 650) {
+      resourceColumnWidth = 115;
+    }
+
+    /*
+      Minimum readable width per hour.
+
+      Narrow Teams:
+      schedule scrolls horizontally.
+
+      Wide Teams:
+      timeline expands and fills the width.
+    */
+
+    let minimumHourWidth = 72;
+
+    if (availableWidth < 800) {
+      minimumHourWidth = 68;
+    }
+
+    const minimumTimelineWidth =
+      minimumHourWidth * HOURS_VISIBLE;
+
+    const availableTimelineWidth =
+      Math.max(
+        0,
+        availableWidth -
+        resourceColumnWidth
+      );
+
+    const timelineWidth =
+      Math.max(
+        minimumTimelineWidth,
+        availableTimelineWidth
+      );
+
+    const scheduleWidth =
+      resourceColumnWidth +
+      timelineWidth;
+
+    root.style.setProperty(
+      "--resource-column-width",
+      `${resourceColumnWidth}px`
+    );
+
+    root.style.setProperty(
+      "--timeline-min-width",
+      `${timelineWidth}px`
+    );
+
+    root.style.setProperty(
+      "--schedule-min-width",
+      `${scheduleWidth}px`
+    );
+  }
+
+  /*
+    Observe actual element width.
+  */
+
+  if ("ResizeObserver" in window) {
+    scheduleResizeObserver =
+      new ResizeObserver(() => {
+        updateScheduleDimensions();
+      });
+
+    scheduleResizeObserver.observe(
+      scheduleCard
+    );
+  }
+
+  /*
+    Initial calculation.
+  */
+
+  updateScheduleDimensions();
+
+  /*
+    Browser fallback.
+  */
+
+  window.addEventListener(
+    "resize",
+    updateScheduleDimensions
   );
 }
 
@@ -205,7 +332,7 @@ function changeDate(numberOfDays) {
 }
 
 /*
-  Load reservations from Supabase
+  Load reservations
 */
 
 async function loadReservations() {
@@ -279,14 +406,12 @@ function renderSchedule() {
 /*
   Create timeline header
 
-  Important:
-  Use hour < DISPLAY_END_HOUR.
+  Uses hour < DISPLAY_END_HOUR.
 
-  This displays:
-  8 AM, 9 AM, ..., 5 PM
+  Therefore it displays:
+  8 AM through 5 PM.
 
-  It does not display 6 PM.
-  The right edge of the grid still represents 6 PM.
+  The right edge still represents 6 PM.
 */
 
 function createScheduleHeader() {
@@ -342,7 +467,7 @@ function createScheduleHeader() {
 }
 
 /*
-  Create one equipment row
+  Create equipment row
 */
 
 function createResourceRow(resource) {
@@ -383,8 +508,8 @@ function createResourceRow(resource) {
   const reservationsForResource =
     currentReservations.filter(
       reservation =>
-        reservation.resource_id ===
-        resource.id
+        Number(reservation.resource_id) ===
+        Number(resource.id)
     );
 
   for (
@@ -451,7 +576,7 @@ function createReservationBlock(
 
   /*
     Ignore reservations completely outside
-    the visible 8 AM–6 PM range.
+    the visible range.
   */
 
   if (
@@ -570,8 +695,12 @@ function openCreateDialog(
     timelineRect.left;
 
   const fraction =
-    clickPosition /
-    timelineRect.width;
+    clamp(
+      clickPosition /
+      timelineRect.width,
+      0,
+      1
+    );
 
   let selectedMinutes =
     DISPLAY_START_HOUR * 60 +
@@ -593,20 +722,18 @@ function openCreateDialog(
     DISPLAY_END_HOUR * 60;
 
   /*
-    Latest possible start is 5:45 PM.
+    Latest valid start is 5:45 PM.
   */
 
   selectedMinutes =
-    Math.max(
+    clamp(
+      selectedMinutes,
       minimumMinutes,
-      Math.min(
-        selectedMinutes,
-        maximumMinutes - 15
-      )
+      maximumMinutes - 15
     );
 
   /*
-    Default reservation duration is one hour,
+    Default duration is one hour,
     but never later than 6 PM.
   */
 
@@ -656,8 +783,8 @@ function openEditDialog(
   const resource =
     resources.find(
       item =>
-        item.id ===
-        reservation.resource_id
+        Number(item.id) ===
+        Number(reservation.resource_id)
     );
 
   reservationIdInput.value =
@@ -702,7 +829,7 @@ function openEditDialog(
 }
 
 /*
-  Reset dialog
+  Clear dialog
 */
 
 function clearDialog() {
@@ -804,7 +931,7 @@ async function saveReservation(event) {
   );
 
   /*
-    Ending exactly at 6 PM is allowed.
+    End exactly at 6 PM is valid.
   */
 
   if (
@@ -824,14 +951,16 @@ async function saveReservation(event) {
   }
 
   /*
-    Check time conflicts.
+    Check conflicts.
   */
 
   const hasConflict =
     currentReservations.some(
       reservation => {
         const isSameResource =
-          reservation.resource_id ===
+          Number(
+            reservation.resource_id
+          ) ===
           resourceId;
 
         const isDifferentReservation =
@@ -958,7 +1087,7 @@ async function deleteReservation() {
 }
 
 /*
-  Get selected date at local midnight
+  Selected date at local midnight
 */
 
 function selectedLocalDate() {
@@ -983,7 +1112,7 @@ function selectedLocalDate() {
 }
 
 /*
-  Combine selected date and time
+  Combine date and time
 */
 
 function combineSelectedDateAndTime(
@@ -1011,7 +1140,7 @@ function combineSelectedDateAndTime(
 }
 
 /*
-  Convert minutes to timeline percentage
+  Minutes to timeline percentage
 */
 
 function minutesToPercent(minutes) {
@@ -1022,7 +1151,7 @@ function minutesToPercent(minutes) {
 }
 
 /*
-  Convert minutes to HH:MM
+  Minutes to HH:MM
 */
 
 function minutesToTimeInput(
@@ -1046,7 +1175,7 @@ function minutesToTimeInput(
 }
 
 /*
-  Convert Date to HH:MM
+  Date to HH:MM
 */
 
 function dateToTimeInput(date) {
@@ -1062,7 +1191,7 @@ function dateToTimeInput(date) {
 }
 
 /*
-  Convert Date to YYYY-MM-DD
+  Date to YYYY-MM-DD
 */
 
 function formatDateInput(date) {
@@ -1103,7 +1232,7 @@ function formatHourLabel(hour) {
 }
 
 /*
-  Format displayed reservation time
+  Format reservation time
 */
 
 function formatTime(date) {
@@ -1113,6 +1242,24 @@ function formatTime(date) {
       hour: "numeric",
       minute: "2-digit",
     }
+  );
+}
+
+/*
+  Clamp number
+*/
+
+function clamp(
+  value,
+  minimum,
+  maximum
+) {
+  return Math.min(
+    Math.max(
+      value,
+      minimum
+    ),
+    maximum
   );
 }
 

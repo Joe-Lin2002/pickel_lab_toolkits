@@ -6,6 +6,15 @@
 
   color: #1f2937;
   background: #f3f4f6;
+
+  /*
+    下面三个值会由 JavaScript 根据
+    Teams iframe 的实际宽度动态调整。
+  */
+
+  --resource-column-width: 145px;
+  --timeline-min-width: 720px;
+  --schedule-min-width: 865px;
 }
 
 * {
@@ -14,6 +23,7 @@
 
 html,
 body {
+  width: 100%;
   min-width: 0;
   min-height: 100%;
   margin: 0;
@@ -42,7 +52,7 @@ button {
   max-width: none;
 
   margin: 0;
-  padding: 16px;
+  padding: 14px;
 }
 
 .header {
@@ -116,7 +126,7 @@ button {
 }
 
 /* ========================================
-   Schedule outer card
+   Schedule card
    ======================================== */
 
 .schedule-card {
@@ -126,20 +136,34 @@ button {
   min-width: 0;
   max-width: 100%;
 
-  overflow: hidden;
+  /*
+    Teams 较窄时允许横向滚动。
+  */
+
+  overflow-x: auto;
+  overflow-y: hidden;
 
   border: 1px solid #cbd5e1;
   border-radius: 8px;
 
   background: white;
+
+  scrollbar-width: thin;
+  scrollbar-color: #94a3b8 #e5e7eb;
+
+  -webkit-overflow-scrolling: touch;
 }
+
+/*
+  宽屏时铺满剩余宽度。
+  窄屏时保持最低可读宽度。
+*/
 
 .schedule {
   display: block;
 
-  width: 100%;
-  min-width: 0;
-  max-width: 100%;
+  width: max(100%, var(--schedule-min-width));
+  min-width: var(--schedule-min-width);
 }
 
 /* ========================================
@@ -151,17 +175,21 @@ button {
   display: grid;
 
   width: 100%;
-  min-width: 0;
+  min-width: var(--schedule-min-width);
 
   grid-template-columns:
-    145px
-    minmax(0, 1fr);
+    var(--resource-column-width)
+    minmax(var(--timeline-min-width), 1fr);
 }
 
 .corner-cell,
 .resource-name {
-  width: 145px;
-  min-width: 0;
+  position: sticky;
+  left: 0;
+  z-index: 10;
+
+  width: var(--resource-column-width);
+  min-width: var(--resource-column-width);
 
   border-right: 1px solid #cbd5e1;
 
@@ -178,7 +206,7 @@ button {
   position: relative;
 
   width: 100%;
-  min-width: 0;
+  min-width: var(--timeline-min-width);
   height: 42px;
 
   overflow: hidden;
@@ -231,7 +259,7 @@ button {
   position: relative;
 
   width: 100%;
-  min-width: 0;
+  min-width: var(--timeline-min-width);
   min-height: 60px;
 
   overflow: hidden;
@@ -239,14 +267,10 @@ button {
   cursor: crosshair;
 
   /*
-    Total time range:
-    8 AM to 6 PM = 10 hours
+    8 AM 至 6 PM，共 10 小时。
 
-    Major lines:
-    10 hourly divisions
-
-    Minor lines:
-    40 fifteen-minute divisions
+    10% = 1 小时
+    2.5% = 15 分钟
   */
 
   background-image:
@@ -337,7 +361,7 @@ button {
 }
 
 /* ========================================
-   Status text
+   Status
    ======================================== */
 
 .status-message {
@@ -416,9 +440,7 @@ dialog input:focus {
 
 .time-inputs {
   display: grid;
-
   grid-template-columns: 1fr 1fr;
-
   gap: 14px;
 }
 
@@ -479,42 +501,30 @@ dialog input:focus {
 }
 
 /* ========================================
-   Teams medium-width view
+   Scrollbar
    ======================================== */
 
-@media (max-width: 1100px) {
-  .app {
-    padding: 12px;
-  }
+.schedule-card::-webkit-scrollbar {
+  height: 12px;
+}
 
-  .schedule-header,
-  .resource-row {
-    grid-template-columns:
-      130px
-      minmax(0, 1fr);
-  }
+.schedule-card::-webkit-scrollbar-track {
+  background: #e5e7eb;
+}
 
-  .corner-cell,
-  .resource-name {
-    width: 130px;
-  }
+.schedule-card::-webkit-scrollbar-thumb {
+  background: #94a3b8;
 
-  .resource-name {
-    padding: 8px 9px;
+  border: 3px solid #e5e7eb;
+  border-radius: 999px;
+}
 
-    font-size: 12px;
-  }
-
-  .hour-label {
-    padding-right: 2px;
-    padding-left: 2px;
-
-    font-size: 10px;
-  }
+.schedule-card::-webkit-scrollbar-thumb:hover {
+  background: #64748b;
 }
 
 /* ========================================
-   Narrow Teams view
+   Narrow Teams viewport
    ======================================== */
 
 @media (max-width: 800px) {
@@ -530,44 +540,13 @@ dialog input:focus {
     font-size: 13px;
   }
 
-  .schedule-header,
-  .resource-row {
-    grid-template-columns:
-      112px
-      minmax(0, 1fr);
-  }
-
-  .corner-cell,
   .resource-name {
-    width: 112px;
-  }
-
-  .resource-name {
-    padding: 7px;
-
+    padding: 7px 9px;
     font-size: 11px;
   }
 
-  .timeline-header,
-  .corner-cell {
-    height: 38px;
-  }
-
   .hour-label {
-    padding-top: 11px;
-
-    font-size: 9px;
-  }
-
-  .resource-name,
-  .timeline-row {
-    min-height: 56px;
-  }
-
-  .reservation {
-    top: 7px;
-
-    height: 42px;
+    font-size: 10px;
   }
 
   .time-inputs {
@@ -575,44 +554,7 @@ dialog input:focus {
   }
 }
 
-/* ========================================
-   Very narrow Teams view
-   ======================================== */
-
-@media (max-width: 600px) {
-  .schedule-header,
-  .resource-row {
-    grid-template-columns:
-      96px
-      minmax(0, 1fr);
-  }
-
-  .corner-cell,
-  .resource-name {
-    width: 96px;
-  }
-
-  .resource-name {
-    font-size: 10px;
-  }
-
-  .hour-label {
-    font-size: 8px;
-  }
-
-  .reservation {
-    padding-right: 4px;
-    padding-left: 4px;
-  }
-
-  .reservation-title {
-    font-size: 10px;
-  }
-
-  .reservation-details {
-    font-size: 8px;
-  }
-
+@media (max-width: 500px) {
   .dialog-buttons {
     flex-wrap: wrap;
   }
