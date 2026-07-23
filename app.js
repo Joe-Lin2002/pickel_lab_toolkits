@@ -3,10 +3,11 @@
 const SUPABASE_URL = "https://klpsqhugljdujfuislzb.supabase.co";
 const SUPABASE_KEY = "sb_publishable_vx6z9_wSGdRYsG-btENzmQ_jB0pKbdO";
 
-const database = supabase.createClient(
-  SUPABASE_URL,
-  SUPABASE_KEY
-);
+const database =
+  supabase.createClient(
+    SUPABASE_URL,
+    SUPABASE_KEY
+  );
 
 /* =========================================================
    Equipment configuration
@@ -30,103 +31,158 @@ const resources = [
 /* =========================================================
    Schedule configuration
 
-   The timeline runs from 8:00 AM to 6:00 PM.
+   Visible and reservable time:
+   7:00 AM–11:00 PM
 
-   The header displays 8 AM through 5 PM.
-   The right edge of the timeline represents 6 PM.
+   Header labels:
+   7 AM–10 PM
 
-   Users may end a reservation exactly at 6:00 PM.
+   The right edge represents 11 PM.
+   Reservations may end exactly at 11:00 PM.
    ========================================================= */
 
-const DISPLAY_START_HOUR = 8;
-const DISPLAY_END_HOUR = 18;
+const DISPLAY_START_HOUR = 7;
+const DISPLAY_END_HOUR = 23;
 
 const HOURS_VISIBLE =
-  DISPLAY_END_HOUR - DISPLAY_START_HOUR;
+  DISPLAY_END_HOUR -
+  DISPLAY_START_HOUR;
 
 const DISPLAY_MINUTES =
   HOURS_VISIBLE * 60;
 
 const MINIMUM_HOUR_WIDTH = 82;
+
 const DEFAULT_RESERVATION_MINUTES = 60;
+
 const TIME_INCREMENT_MINUTES = 15;
+
+const SCROLL_AMOUNT = 410;
 
 /* =========================================================
    HTML elements
    ========================================================= */
 
 const scheduleElement =
-  document.querySelector("#schedule");
+  document.querySelector(
+    "#schedule"
+  );
 
 const scheduleCard =
-  document.querySelector("#schedule-card");
+  document.querySelector(
+    "#schedule-card"
+  );
 
 const datePicker =
-  document.querySelector("#date-picker");
+  document.querySelector(
+    "#date-picker"
+  );
 
 const statusMessage =
-  document.querySelector("#status-message");
+  document.querySelector(
+    "#status-message"
+  );
 
 const dialog =
-  document.querySelector("#reservation-dialog");
+  document.querySelector(
+    "#reservation-dialog"
+  );
 
 const dialogTitle =
-  document.querySelector("#dialog-title");
+  document.querySelector(
+    "#dialog-title"
+  );
 
 const form =
-  document.querySelector("#reservation-form");
+  document.querySelector(
+    "#reservation-form"
+  );
 
 const reservationIdInput =
-  document.querySelector("#reservation-id");
+  document.querySelector(
+    "#reservation-id"
+  );
 
 const resourceIdInput =
-  document.querySelector("#resource-id");
+  document.querySelector(
+    "#resource-id"
+  );
 
 const resourceNameInput =
-  document.querySelector("#resource-name");
+  document.querySelector(
+    "#resource-name"
+  );
 
 const personNameInput =
-  document.querySelector("#person-name");
+  document.querySelector(
+    "#person-name"
+  );
 
 const titleInput =
-  document.querySelector("#reservation-title");
+  document.querySelector(
+    "#reservation-title"
+  );
 
 const startTimeInput =
-  document.querySelector("#start-time");
+  document.querySelector(
+    "#start-time"
+  );
 
 const endTimeInput =
-  document.querySelector("#end-time");
+  document.querySelector(
+    "#end-time"
+  );
 
 const formError =
-  document.querySelector("#form-error");
+  document.querySelector(
+    "#form-error"
+  );
 
 const deleteButton =
-  document.querySelector("#delete-button");
+  document.querySelector(
+    "#delete-button"
+  );
 
 const cancelButton =
-  document.querySelector("#cancel-button");
+  document.querySelector(
+    "#cancel-button"
+  );
 
 const previousDayButton =
-  document.querySelector("#previous-day");
+  document.querySelector(
+    "#previous-day"
+  );
 
 const todayButton =
-  document.querySelector("#today-button");
+  document.querySelector(
+    "#today-button"
+  );
 
 const nextDayButton =
-  document.querySelector("#next-day");
+  document.querySelector(
+    "#next-day"
+  );
 
 const scrollLeftButton =
-  document.querySelector("#scroll-left");
+  document.querySelector(
+    "#scroll-left"
+  );
 
 const scrollRightButton =
-  document.querySelector("#scroll-right");
+  document.querySelector(
+    "#scroll-right"
+  );
 
 /* =========================================================
    Application state
    ========================================================= */
 
 let currentReservations = [];
+
 let scheduleResizeObserver = null;
+
+let updateScheduleDimensions =
+  () => {};
 
 /* =========================================================
    Start application
@@ -138,7 +194,9 @@ async function initialize() {
   validateRequiredElements();
 
   datePicker.value =
-    formatDateInput(new Date());
+    formatDateInput(
+      new Date()
+    );
 
   attachEventListeners();
 
@@ -146,8 +204,7 @@ async function initialize() {
   initializeScheduleScrolling();
 
   /*
-    Render the empty schedule immediately so the grid remains
-    visible even if Supabase cannot be reached.
+    Show an empty grid immediately.
   */
 
   renderSchedule();
@@ -156,7 +213,7 @@ async function initialize() {
 }
 
 /* =========================================================
-   Validate required HTML elements
+   Validate HTML
    ========================================================= */
 
 function validateRequiredElements() {
@@ -181,16 +238,29 @@ function validateRequiredElements() {
     previousDayButton,
     todayButton,
     nextDayButton,
+    scrollLeftButton,
+    scrollRightButton,
   };
 
   const missingElements =
-    Object.entries(requiredElements)
-      .filter(([, element]) => !element)
-      .map(([name]) => name);
+    Object.entries(
+      requiredElements
+    )
+      .filter(
+        ([, element]) =>
+          !element
+      )
+      .map(
+        ([name]) =>
+          name
+      );
 
-  if (missingElements.length > 0) {
+  if (
+    missingElements.length > 0
+  ) {
     throw new Error(
-      `Missing required HTML elements: ${missingElements.join(", ")}`
+      "Missing required HTML elements: " +
+      missingElements.join(", ")
     );
   }
 }
@@ -205,6 +275,7 @@ function attachEventListeners() {
     async () => {
       changeDate(-1);
       resetScheduleScroll();
+
       await loadReservations();
     }
   );
@@ -214,6 +285,7 @@ function attachEventListeners() {
     async () => {
       changeDate(1);
       resetScheduleScroll();
+
       await loadReservations();
     }
   );
@@ -222,7 +294,9 @@ function attachEventListeners() {
     "click",
     async () => {
       datePicker.value =
-        formatDateInput(new Date());
+        formatDateInput(
+          new Date()
+        );
 
       resetScheduleScroll();
 
@@ -234,6 +308,7 @@ function attachEventListeners() {
     "change",
     async () => {
       resetScheduleScroll();
+
       await loadReservations();
     }
   );
@@ -255,172 +330,154 @@ function attachEventListeners() {
     deleteReservation
   );
 
+  startTimeInput.addEventListener(
+    "change",
+    updateSuggestedEndTime
+  );
+
   /*
-    Close dialog when clicking the backdrop.
+    Close the dialog when clicking
+    directly on its backdrop area.
   */
 
   dialog.addEventListener(
     "click",
     event => {
-      if (event.target === dialog) {
+      if (
+        event.target === dialog
+      ) {
         dialog.close();
       }
     }
   );
-
-  /*
-    Improve end-time defaults when start time changes.
-  */
-
-  startTimeInput.addEventListener(
-    "change",
-    updateSuggestedEndTime
-  );
 }
 
 /* =========================================================
-   Responsive schedule sizing
+   Teams iframe responsive width
 
-   Teams embeds this page in an iframe. This function measures
-   the actual schedule-card width rather than relying only on
-   window.innerWidth or CSS media queries.
+   The timeline remains at least:
+   16 hours × 82 px = 1312 px
 
-   Narrow Teams window:
-   - timeline keeps a readable pixel width
-   - schedule-card scrolls horizontally
-
-   Wide Teams window:
-   - timeline expands to fill the available width
+   If Teams is narrower, schedule-card scrolls.
+   If Teams is wider, the timeline expands.
    ========================================================= */
 
 function initializeResponsiveSchedule() {
   const root =
     document.documentElement;
 
-  function updateScheduleDimensions() {
-    const cardWidth =
-      Math.max(
-        0,
-        scheduleCard.clientWidth
+  updateScheduleDimensions =
+    function updateDimensions() {
+      const cardWidth =
+        Math.max(
+          0,
+          scheduleCard.clientWidth
+        );
+
+      let resourceColumnWidth =
+        145;
+
+      if (
+        cardWidth < 800
+      ) {
+        resourceColumnWidth =
+          125;
+      }
+
+      if (
+        cardWidth < 600
+      ) {
+        resourceColumnWidth =
+          110;
+      }
+
+      const minimumTimelineWidth =
+        HOURS_VISIBLE *
+        MINIMUM_HOUR_WIDTH;
+
+      const availableTimelineWidth =
+        Math.max(
+          0,
+          cardWidth -
+          resourceColumnWidth
+        );
+
+      const timelineWidth =
+        Math.max(
+          minimumTimelineWidth,
+          availableTimelineWidth
+        );
+
+      const scheduleWidth =
+        resourceColumnWidth +
+        timelineWidth;
+
+      root.style.setProperty(
+        "--resource-column-width",
+        `${resourceColumnWidth}px`
       );
 
-    let resourceColumnWidth = 145;
-
-    if (cardWidth < 800) {
-      resourceColumnWidth = 125;
-    }
-
-    if (cardWidth < 600) {
-      resourceColumnWidth = 110;
-    }
-
-    const minimumTimelineWidth =
-      HOURS_VISIBLE *
-      MINIMUM_HOUR_WIDTH;
-
-    const availableTimelineWidth =
-      Math.max(
-        0,
-        cardWidth -
-        resourceColumnWidth
+      root.style.setProperty(
+        "--timeline-width",
+        `${timelineWidth}px`
       );
 
-    const timelineWidth =
-      Math.max(
-        minimumTimelineWidth,
-        availableTimelineWidth
+      root.style.setProperty(
+        "--schedule-width",
+        `${scheduleWidth}px`
       );
 
-    const scheduleWidth =
-      resourceColumnWidth +
-      timelineWidth;
+      /*
+        Inline widths provide an additional
+        safeguard in the Teams embedded browser.
+      */
 
-    root.style.setProperty(
-      "--resource-column-width",
-      `${resourceColumnWidth}px`
-    );
-
-    root.style.setProperty(
-      "--timeline-width",
-      `${timelineWidth}px`
-    );
-
-    root.style.setProperty(
-      "--schedule-width",
-      `${scheduleWidth}px`
-    );
-
-    /*
-      Inline dimensions provide an additional safeguard for
-      the embedded Teams browser.
-    */
-
-    scheduleElement.style.width =
-      `${scheduleWidth}px`;
-
-    scheduleElement.style.minWidth =
-      `${scheduleWidth}px`;
-
-    const scheduleHeaders =
-      scheduleElement.querySelectorAll(
-        ".schedule-header"
-      );
-
-    const resourceRows =
-      scheduleElement.querySelectorAll(
-        ".resource-row"
-      );
-
-    const timelineHeaders =
-      scheduleElement.querySelectorAll(
-        ".timeline-header"
-      );
-
-    const timelineRows =
-      scheduleElement.querySelectorAll(
-        ".timeline-row"
-      );
-
-    scheduleHeaders.forEach(element => {
-      element.style.width =
+      scheduleElement.style.width =
         `${scheduleWidth}px`;
 
-      element.style.minWidth =
-        `${scheduleWidth}px`;
-    });
-
-    resourceRows.forEach(element => {
-      element.style.width =
+      scheduleElement.style.minWidth =
         `${scheduleWidth}px`;
 
-      element.style.minWidth =
-        `${scheduleWidth}px`;
-    });
+      scheduleElement
+        .querySelectorAll(
+          ".schedule-header, " +
+          ".resource-row"
+        )
+        .forEach(element => {
+          element.style.width =
+            `${scheduleWidth}px`;
 
-    timelineHeaders.forEach(element => {
-      element.style.width =
-        `${timelineWidth}px`;
+          element.style.minWidth =
+            `${scheduleWidth}px`;
+        });
 
-      element.style.minWidth =
-        `${timelineWidth}px`;
-    });
+      scheduleElement
+        .querySelectorAll(
+          ".timeline-header, " +
+          ".timeline-row"
+        )
+        .forEach(element => {
+          element.style.width =
+            `${timelineWidth}px`;
 
-    timelineRows.forEach(element => {
-      element.style.width =
-        `${timelineWidth}px`;
+          element.style.minWidth =
+            `${timelineWidth}px`;
+        });
 
-      element.style.minWidth =
-        `${timelineWidth}px`;
-    });
-  }
+      updateScrollButtonStates();
+    };
 
   updateScheduleDimensions();
 
-  if ("ResizeObserver" in window) {
+  if (
+    "ResizeObserver" in window
+  ) {
     scheduleResizeObserver =
-      new ResizeObserver(() => {
-        updateScheduleDimensions();
-      });
+      new ResizeObserver(
+        () => {
+          updateScheduleDimensions();
+        }
+      );
 
     scheduleResizeObserver.observe(
       scheduleCard
@@ -433,7 +490,8 @@ function initializeResponsiveSchedule() {
   );
 
   /*
-    Teams may finish sizing the iframe after initial load.
+    Teams may change the iframe size
+    shortly after the tab first opens.
   */
 
   window.setTimeout(
@@ -443,73 +501,64 @@ function initializeResponsiveSchedule() {
 
   window.setTimeout(
     updateScheduleDimensions,
-    300
+    350
   );
 
   window.setTimeout(
     updateScheduleDimensions,
-    750
+    800
   );
 
   window.setTimeout(
     updateScheduleDimensions,
     1500
   );
-
-  /*
-    Make the function available after every re-render.
-  */
-
-  initializeResponsiveSchedule.update =
-    updateScheduleDimensions;
 }
 
 /* =========================================================
-   Schedule scrolling
-
-   Supported methods:
-   - visible horizontal scrollbar
-   - Earlier / Later buttons
-   - mouse wheel
-   - trackpad horizontal movement
-   - keyboard left/right arrows
+   Horizontal scrolling
    ========================================================= */
 
 function initializeScheduleScrolling() {
-  const scrollAmount = 360;
+  scrollLeftButton.addEventListener(
+    "click",
+    () => {
+      scheduleCard.scrollBy({
+        left: -SCROLL_AMOUNT,
+        behavior: "smooth",
+      });
+    }
+  );
 
-  if (scrollLeftButton) {
-    scrollLeftButton.addEventListener(
-      "click",
-      () => {
-        scheduleCard.scrollBy({
-          left: -scrollAmount,
-          behavior: "smooth",
-        });
-      }
-    );
-  }
+  scrollRightButton.addEventListener(
+    "click",
+    () => {
+      scheduleCard.scrollBy({
+        left: SCROLL_AMOUNT,
+        behavior: "smooth",
+      });
+    }
+  );
 
-  if (scrollRightButton) {
-    scrollRightButton.addEventListener(
-      "click",
-      () => {
-        scheduleCard.scrollBy({
-          left: scrollAmount,
-          behavior: "smooth",
-        });
-      }
-    );
-  }
+  scheduleCard.addEventListener(
+    "scroll",
+    updateScrollButtonStates
+  );
+
+  /*
+    Translate vertical mouse-wheel movement
+    into horizontal movement when the schedule
+    has horizontal overflow.
+  */
 
   scheduleCard.addEventListener(
     "wheel",
     event => {
-      const canScrollHorizontally =
+      const canScroll =
         scheduleCard.scrollWidth >
-        scheduleCard.clientWidth;
+        scheduleCard.clientWidth + 1;
 
-      if (!canScrollHorizontally) {
+      if (!canScroll) {
         return;
       }
 
@@ -519,41 +568,57 @@ function initializeScheduleScrolling() {
           ? event.deltaX
           : event.deltaY;
 
-      if (movement === 0) {
+      if (
+        movement === 0
+      ) {
         return;
       }
 
       event.preventDefault();
 
-      scheduleCard.scrollLeft += movement;
+      scheduleCard.scrollLeft +=
+        movement;
     },
     {
       passive: false,
     }
   );
 
+  /*
+    Keyboard scrolling when the schedule
+    has focus.
+  */
+
   scheduleCard.addEventListener(
     "keydown",
     event => {
-      if (event.key === "ArrowLeft") {
+      if (
+        event.key ===
+        "ArrowLeft"
+      ) {
         event.preventDefault();
 
         scheduleCard.scrollBy({
-          left: -scrollAmount,
+          left: -SCROLL_AMOUNT,
           behavior: "smooth",
         });
       }
 
-      if (event.key === "ArrowRight") {
+      if (
+        event.key ===
+        "ArrowRight"
+      ) {
         event.preventDefault();
 
         scheduleCard.scrollBy({
-          left: scrollAmount,
+          left: SCROLL_AMOUNT,
           behavior: "smooth",
         });
       }
 
-      if (event.key === "Home") {
+      if (
+        event.key === "Home"
+      ) {
         event.preventDefault();
 
         scheduleCard.scrollTo({
@@ -562,7 +627,9 @@ function initializeScheduleScrolling() {
         });
       }
 
-      if (event.key === "End") {
+      if (
+        event.key === "End"
+      ) {
         event.preventDefault();
 
         scheduleCard.scrollTo({
@@ -573,13 +640,39 @@ function initializeScheduleScrolling() {
       }
     }
   );
+
+  updateScrollButtonStates();
+}
+
+function updateScrollButtonStates() {
+  const maximumScroll =
+    Math.max(
+      0,
+      scheduleCard.scrollWidth -
+      scheduleCard.clientWidth
+    );
+
+  scrollLeftButton.disabled =
+    scheduleCard.scrollLeft <= 1;
+
+  scrollRightButton.disabled =
+    scheduleCard.scrollLeft >=
+    maximumScroll - 1;
+}
+
+function resetScheduleScroll() {
+  scheduleCard.scrollLeft = 0;
+
+  updateScrollButtonStates();
 }
 
 /* =========================================================
    Date navigation
    ========================================================= */
 
-function changeDate(numberOfDays) {
+function changeDate(
+  numberOfDays
+) {
   const date =
     selectedLocalDate();
 
@@ -592,12 +685,8 @@ function changeDate(numberOfDays) {
     formatDateInput(date);
 }
 
-function resetScheduleScroll() {
-  scheduleCard.scrollLeft = 0;
-}
-
 /* =========================================================
-   Load reservations from Supabase
+   Load reservations
    ========================================================= */
 
 async function loadReservations() {
@@ -616,7 +705,10 @@ async function loadReservations() {
   );
 
   try {
-    const { data, error } =
+    const {
+      data,
+      error,
+    } =
       await database
         .from("reservations")
         .select("*")
@@ -656,10 +748,11 @@ async function loadReservations() {
     renderSchedule();
 
     setStatus(
-      `Could not load reservations: ${
+      "Could not load reservations: " +
+      (
         error?.message ??
         "Unknown error"
-      }`
+      )
     );
   }
 }
@@ -673,72 +766,84 @@ function renderSchedule() {
 
   createScheduleHeader();
 
-  for (const resource of resources) {
-    createResourceRow(resource);
+  for (
+    const resource
+    of resources
+  ) {
+    createResourceRow(
+      resource
+    );
   }
 
   /*
-    Reapply the actual pixel width after the DOM is rebuilt.
+    Reapply pixel widths after rebuilding
+    the schedule DOM.
   */
 
-  if (
-    typeof initializeResponsiveSchedule.update ===
-    "function"
-  ) {
-    requestAnimationFrame(() => {
-      initializeResponsiveSchedule.update();
-    });
-  }
+  requestAnimationFrame(
+    () => {
+      updateScheduleDimensions();
+    }
+  );
 }
 
 /* =========================================================
-   Create timeline header
+   Header
 
-   Important:
+   Displays 7 AM through 10 PM.
+
+   Because the condition is:
    hour < DISPLAY_END_HOUR
 
-   This displays:
-   8 AM, 9 AM, 10 AM, ..., 5 PM
-
-   It does not display 6 PM.
-
-   The right edge of the schedule still represents 6 PM.
+   11 PM is not printed as a label,
+   but the right edge represents 11 PM.
    ========================================================= */
 
 function createScheduleHeader() {
   const header =
-    document.createElement("div");
+    document.createElement(
+      "div"
+    );
 
   header.className =
     "schedule-header";
 
   const corner =
-    document.createElement("div");
+    document.createElement(
+      "div"
+    );
 
   corner.className =
     "corner-cell";
 
   const timelineHeader =
-    document.createElement("div");
+    document.createElement(
+      "div"
+    );
 
   timelineHeader.className =
     "timeline-header";
 
   for (
-    let hour = DISPLAY_START_HOUR;
-    hour < DISPLAY_END_HOUR;
+    let hour =
+      DISPLAY_START_HOUR;
+    hour <
+      DISPLAY_END_HOUR;
     hour += 1
   ) {
     const label =
-      document.createElement("div");
+      document.createElement(
+        "div"
+      );
 
     label.className =
       "hour-label";
 
     const minutesFromStart =
-      (hour -
-        DISPLAY_START_HOUR) *
-      60;
+      (
+        hour -
+        DISPLAY_START_HOUR
+      ) * 60;
 
     label.style.left =
       `${minutesToPercent(
@@ -764,18 +869,24 @@ function createScheduleHeader() {
 }
 
 /* =========================================================
-   Create one equipment row
+   Equipment rows
    ========================================================= */
 
-function createResourceRow(resource) {
+function createResourceRow(
+  resource
+) {
   const row =
-    document.createElement("div");
+    document.createElement(
+      "div"
+    );
 
   row.className =
     "resource-row";
 
   const name =
-    document.createElement("div");
+    document.createElement(
+      "div"
+    );
 
   name.className =
     "resource-name";
@@ -787,7 +898,9 @@ function createResourceRow(resource) {
     resource.name;
 
   const timeline =
-    document.createElement("div");
+    document.createElement(
+      "div"
+    );
 
   timeline.className =
     "timeline-row";
@@ -824,7 +937,9 @@ function createResourceRow(resource) {
       );
 
     if (block) {
-      timeline.appendChild(block);
+      timeline.appendChild(
+        block
+      );
     }
   }
 
@@ -833,11 +948,13 @@ function createResourceRow(resource) {
     timeline
   );
 
-  scheduleElement.appendChild(row);
+  scheduleElement.appendChild(
+    row
+  );
 }
 
 /* =========================================================
-   Create a reservation block
+   Reservation block
    ========================================================= */
 
 function createReservationBlock(
@@ -877,21 +994,20 @@ function createReservationBlock(
     );
 
   if (
-    Number.isNaN(start.getTime()) ||
-    Number.isNaN(end.getTime())
+    Number.isNaN(
+      start.getTime()
+    ) ||
+    Number.isNaN(
+      end.getTime()
+    )
   ) {
     console.warn(
-      "Invalid reservation time:",
+      "Invalid reservation:",
       reservation
     );
 
     return null;
   }
-
-  /*
-    Do not display reservations completely outside
-    the visible 8 AM–6 PM range.
-  */
 
   if (
     end <= displayStart ||
@@ -901,12 +1017,16 @@ function createReservationBlock(
   }
 
   const startMinutes =
-    (start - displayStart) /
-    60000;
+    (
+      start -
+      displayStart
+    ) / 60000;
 
   const endMinutes =
-    (end - displayStart) /
-    60000;
+    (
+      end -
+      displayStart
+    ) / 60000;
 
   const clippedStart =
     Math.max(
@@ -924,15 +1044,21 @@ function createReservationBlock(
     clippedEnd -
     clippedStart;
 
-  if (visibleDuration <= 0) {
+  if (
+    visibleDuration <= 0
+  ) {
     return null;
   }
 
   const block =
-    document.createElement("button");
+    document.createElement(
+      "button"
+    );
 
   block.type = "button";
-  block.className = "reservation";
+
+  block.className =
+    "reservation";
 
   block.style.left =
     `${minutesToPercent(
@@ -947,10 +1073,13 @@ function createReservationBlock(
   block.title =
     `${reservation.title}\n` +
     `${reservation.person_name}\n` +
-    `${formatTime(start)}–${formatTime(end)}`;
+    `${formatTime(start)}–` +
+    `${formatTime(end)}`;
 
   const title =
-    document.createElement("span");
+    document.createElement(
+      "span"
+    );
 
   title.className =
     "reservation-title";
@@ -959,14 +1088,17 @@ function createReservationBlock(
     reservation.title;
 
   const details =
-    document.createElement("span");
+    document.createElement(
+      "span"
+    );
 
   details.className =
     "reservation-details";
 
   details.textContent =
     `${reservation.person_name} · ` +
-    `${formatTime(start)}–${formatTime(end)}`;
+    `${formatTime(start)}–` +
+    `${formatTime(end)}`;
 
   block.append(
     title,
@@ -988,7 +1120,7 @@ function createReservationBlock(
 }
 
 /* =========================================================
-   Open create dialog
+   Create reservation dialog
    ========================================================= */
 
 function openCreateDialog(
@@ -1006,10 +1138,9 @@ function openCreateDialog(
   const timelineRect =
     timeline.getBoundingClientRect();
 
-  if (timelineRect.width <= 0) {
-    formError.textContent =
-      "Could not determine the selected time.";
-
+  if (
+    timelineRect.width <= 0
+  ) {
     return;
   }
 
@@ -1047,7 +1178,7 @@ function openCreateDialog(
     60;
 
   /*
-    Latest possible start is 5:45 PM.
+    Latest start time is 10:45 PM.
   */
 
   selectedMinutes =
@@ -1055,13 +1186,13 @@ function openCreateDialog(
       selectedMinutes,
       minimumMinutes,
       maximumMinutes -
-        TIME_INCREMENT_MINUTES
+      TIME_INCREMENT_MINUTES
     );
 
   const endMinutes =
     Math.min(
       selectedMinutes +
-        DEFAULT_RESERVATION_MINUTES,
+      DEFAULT_RESERVATION_MINUTES,
       maximumMinutes
     );
 
@@ -1091,7 +1222,7 @@ function openCreateDialog(
 }
 
 /* =========================================================
-   Open edit dialog
+   Edit reservation dialog
    ========================================================= */
 
 function openEditDialog(
@@ -1112,7 +1243,9 @@ function openEditDialog(
     );
 
   reservationIdInput.value =
-    String(reservation.id);
+    String(
+      reservation.id
+    );
 
   resourceIdInput.value =
     String(
@@ -1161,23 +1294,24 @@ function openEditDialog(
 function clearDialog() {
   form.reset();
 
-  reservationIdInput.value = "";
-  resourceIdInput.value = "";
+  reservationIdInput.value =
+    "";
 
-  resourceNameInput.value = "";
+  resourceIdInput.value =
+    "";
 
-  formError.textContent = "";
+  resourceNameInput.value =
+    "";
+
+  formError.textContent =
+    "";
 }
 
 /* =========================================================
-   Suggest end time after start-time changes
+   Suggested end time
    ========================================================= */
 
 function updateSuggestedEndTime() {
-  if (!startTimeInput.value) {
-    return;
-  }
-
   const startMinutes =
     timeInputToMinutes(
       startTimeInput.value
@@ -1189,6 +1323,11 @@ function updateSuggestedEndTime() {
     return;
   }
 
+  const currentEndMinutes =
+    timeInputToMinutes(
+      endTimeInput.value
+    );
+
   const maximumMinutes =
     DISPLAY_END_HOUR *
     60;
@@ -1196,18 +1335,14 @@ function updateSuggestedEndTime() {
   const suggestedEnd =
     Math.min(
       startMinutes +
-        DEFAULT_RESERVATION_MINUTES,
+      DEFAULT_RESERVATION_MINUTES,
       maximumMinutes
     );
 
-  const existingEnd =
-    timeInputToMinutes(
-      endTimeInput.value
-    );
-
   if (
-    existingEnd === null ||
-    existingEnd <= startMinutes
+    currentEndMinutes === null ||
+    currentEndMinutes <=
+      startMinutes
   ) {
     endTimeInput.value =
       minutesToTimeInput(
@@ -1220,10 +1355,13 @@ function updateSuggestedEndTime() {
    Save reservation
    ========================================================= */
 
-async function saveReservation(event) {
+async function saveReservation(
+  event
+) {
   event.preventDefault();
 
-  formError.textContent = "";
+  formError.textContent =
+    "";
 
   const reservationId =
     reservationIdInput.value;
@@ -1234,14 +1372,19 @@ async function saveReservation(event) {
     );
 
   const personName =
-    personNameInput.value.trim();
+    personNameInput
+      .value
+      .trim();
 
   const reservationTitle =
-    titleInput.value.trim();
+    titleInput
+      .value
+      .trim();
 
   if (
-    !Number.isInteger(resourceId) ||
-    resourceId < 1
+    !Number.isInteger(
+      resourceId
+    )
   ) {
     formError.textContent =
       "Invalid equipment selection.";
@@ -1258,7 +1401,9 @@ async function saveReservation(event) {
     return;
   }
 
-  if (!reservationTitle) {
+  if (
+    !reservationTitle
+  ) {
     formError.textContent =
       "Please enter a description.";
 
@@ -1288,16 +1433,8 @@ async function saveReservation(event) {
     );
 
   if (
-    Number.isNaN(start.getTime()) ||
-    Number.isNaN(end.getTime())
+    !(start < end)
   ) {
-    formError.textContent =
-      "Invalid reservation time.";
-
-    return;
-  }
-
-  if (!(start < end)) {
     formError.textContent =
       "End time must be after start time.";
 
@@ -1325,8 +1462,7 @@ async function saveReservation(event) {
   );
 
   /*
-    Ending exactly at 6:00 PM is valid because only
-    end > displayEnd is rejected.
+    Ending exactly at 11:00 PM is allowed.
   */
 
   if (
@@ -1348,13 +1484,13 @@ async function saveReservation(event) {
   const hasConflict =
     currentReservations.some(
       reservation => {
-        const isSameResource =
+        const sameResource =
           Number(
             reservation.resource_id
           ) ===
           resourceId;
 
-        const isDifferentReservation =
+        const differentReservation =
           String(
             reservation.id
           ) !==
@@ -1377,8 +1513,8 @@ async function saveReservation(event) {
           end > existingStart;
 
         return (
-          isSameResource &&
-          isDifferentReservation &&
+          sameResource &&
+          differentReservation &&
           overlaps
         );
       }
@@ -1392,11 +1528,20 @@ async function saveReservation(event) {
   }
 
   const record = {
-    resource_id: resourceId,
-    person_name: personName,
-    title: reservationTitle,
-    start_time: start.toISOString(),
-    end_time: end.toISOString(),
+    resource_id:
+      resourceId,
+
+    person_name:
+      personName,
+
+    title:
+      reservationTitle,
+
+    start_time:
+      start.toISOString(),
+
+    end_time:
+      end.toISOString(),
   };
 
   setDialogBusy(true);
@@ -1407,7 +1552,9 @@ async function saveReservation(event) {
     if (reservationId) {
       result =
         await database
-          .from("reservations")
+          .from(
+            "reservations"
+          )
           .update(record)
           .eq(
             "id",
@@ -1416,11 +1563,15 @@ async function saveReservation(event) {
     } else {
       result =
         await database
-          .from("reservations")
+          .from(
+            "reservations"
+          )
           .insert(record);
     }
 
-    if (result.error) {
+    if (
+      result.error
+    ) {
       throw result.error;
     }
 
@@ -1465,9 +1616,13 @@ async function deleteReservation() {
   setDialogBusy(true);
 
   try {
-    const { error } =
+    const {
+      error,
+    } =
       await database
-        .from("reservations")
+        .from(
+          "reservations"
+        )
         .delete()
         .eq(
           "id",
@@ -1496,36 +1651,57 @@ async function deleteReservation() {
 }
 
 /* =========================================================
-   Disable dialog controls during database operations
+   Disable form during database changes
    ========================================================= */
 
-function setDialogBusy(isBusy) {
+function setDialogBusy(
+  isBusy
+) {
   const buttons =
     form.querySelectorAll(
       "button"
     );
 
-  const editableInputs =
+  const inputs =
     form.querySelectorAll(
       "input:not([type='hidden']):not(:disabled)"
     );
 
-  buttons.forEach(button => {
-    button.disabled = isBusy;
-  });
+  buttons.forEach(
+    button => {
+      button.disabled =
+        isBusy;
+    }
+  );
 
-  editableInputs.forEach(input => {
-    input.disabled = isBusy;
-  });
+  inputs.forEach(
+    input => {
+      input.disabled =
+        isBusy;
+    }
+  );
 }
 
 /* =========================================================
-   Date and time utilities
+   Date and time helpers
    ========================================================= */
 
 function selectedLocalDate() {
-  if (!datePicker.value) {
-    return new Date();
+  if (
+    !datePicker.value
+  ) {
+    const now =
+      new Date();
+
+    return new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate(),
+      0,
+      0,
+      0,
+      0
+    );
   }
 
   const [
@@ -1572,7 +1748,9 @@ function combineSelectedDateAndTime(
   return date;
 }
 
-function minutesToPercent(minutes) {
+function minutesToPercent(
+  minutes
+) {
   return (
     minutes /
     DISPLAY_MINUTES
@@ -1606,25 +1784,30 @@ function timeInputToMinutes(
     return null;
   }
 
-  const parts =
+  const [
+    hours,
+    minutes,
+  ] =
     timeValue
       .split(":")
       .map(Number);
 
   if (
-    parts.length < 2 ||
-    parts.some(Number.isNaN)
+    Number.isNaN(hours) ||
+    Number.isNaN(minutes)
   ) {
     return null;
   }
 
   return (
-    parts[0] * 60 +
-    parts[1]
+    hours * 60 +
+    minutes
   );
 }
 
-function dateToTimeInput(date) {
+function dateToTimeInput(
+  date
+) {
   return (
     String(
       date.getHours()
@@ -1636,7 +1819,9 @@ function dateToTimeInput(date) {
   );
 }
 
-function formatDateInput(date) {
+function formatDateInput(
+  date
+) {
   const year =
     date.getFullYear();
 
@@ -1655,7 +1840,9 @@ function formatDateInput(date) {
   );
 }
 
-function formatHourLabel(hour) {
+function formatHourLabel(
+  hour
+) {
   const suffix =
     hour >= 12
       ? "PM"
@@ -1669,7 +1856,9 @@ function formatHourLabel(hour) {
   );
 }
 
-function formatTime(date) {
+function formatTime(
+  date
+) {
   return date.toLocaleTimeString(
     [],
     {
@@ -1697,7 +1886,9 @@ function clamp(
    Status message
    ========================================================= */
 
-function setStatus(message) {
+function setStatus(
+  message
+) {
   statusMessage.textContent =
     message;
 }

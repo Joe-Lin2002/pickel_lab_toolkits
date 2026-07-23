@@ -10,13 +10,18 @@
 
   <title>Pickel Lab Equipment Schedule</title>
 
-  <!-- 每次更新代码后递增版本号，避免 Teams 使用旧缓存 -->
+  <!--
+    每次修改代码后递增版本号，
+    可以减少 Microsoft Teams 使用旧缓存的问题。
+  -->
   <link
     rel="stylesheet"
-    href="style.css?v=20260723-10"
+    href="style.css?v=20260723-12"
   >
 
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script
+    src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"
+  ></script>
 </head>
 
 <body>
@@ -68,7 +73,7 @@
         id="schedule-card"
         class="schedule-card"
         tabindex="0"
-        aria-label="Equipment schedule. Scroll horizontally to see later times."
+        aria-label="Equipment schedule. Scroll horizontally to view later times."
       >
         <div
           id="schedule"
@@ -81,19 +86,19 @@
         <button
           id="scroll-left"
           type="button"
-          aria-label="Scroll schedule left"
+          aria-label="Scroll toward earlier times"
         >
           ← Earlier
         </button>
 
         <span>
-          Scroll horizontally to view later times
+          Scroll horizontally to view the full day
         </span>
 
         <button
           id="scroll-right"
           type="button"
-          aria-label="Scroll schedule right"
+          aria-label="Scroll toward later times"
         >
           Later →
         </button>
@@ -173,8 +178,8 @@
           <input
             id="start-time"
             type="time"
-            min="08:00"
-            max="17:45"
+            min="07:00"
+            max="22:45"
             step="900"
             required
           >
@@ -186,8 +191,8 @@
           <input
             id="end-time"
             type="time"
-            min="08:15"
-            max="18:00"
+            min="07:15"
+            max="23:00"
             step="900"
             required
           >
@@ -232,6 +237,6 @@
 
   </dialog>
 
-  <script src="app.js?v=20260723-10"></script>
+  <script src="app.js?v=20260723-12"></script>
 </body>
 </html>

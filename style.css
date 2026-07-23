@@ -7,9 +7,14 @@
   color: #1f2937;
   background: #f3f4f6;
 
+  /*
+    这些变量也会由 JavaScript 根据
+    Teams iframe 的实际宽度更新。
+  */
+
   --resource-column-width: 145px;
-  --timeline-width: 820px;
-  --schedule-width: 965px;
+  --timeline-width: 1312px;
+  --schedule-width: 1457px;
 }
 
 * {
@@ -25,11 +30,6 @@ body {
 }
 
 body {
-  /*
-    不再使用 overflow-x: hidden。
-    即使 Teams 对内部滚动处理异常，
-    页面也不会直接把右侧内容永久裁掉。
-  */
   overflow-x: auto;
 }
 
@@ -134,10 +134,7 @@ button {
 }
 
 /*
-  This is the actual scrolling window.
-
-  The width stays equal to the Teams tab width.
-  The internal .schedule canvas is wider.
+  schedule-card 是横向滚动窗口。
 */
 
 .schedule-card {
@@ -160,19 +157,12 @@ button {
 
   -webkit-overflow-scrolling: touch;
 
-  /*
-    Prevent the wide internal grid from changing
-    the width of this scrolling container.
-  */
-  contain: inline-size;
   overscroll-behavior-x: contain;
+  touch-action: pan-x pan-y;
 }
 
 /*
-  This is the wide internal canvas.
-
-  JavaScript sets an explicit pixel width.
-  It must be wider than schedule-card when Teams is narrow.
+  schedule 是宽于 Teams 窗口的内部画布。
 */
 
 .schedule {
@@ -282,10 +272,13 @@ button {
   cursor: crosshair;
 
   /*
-    8 AM to 6 PM = 10 hours.
+    7 AM–11 PM，共16小时。
 
-    10% = one hour
-    2.5% = fifteen minutes
+    每小时：
+    100% ÷ 16 = 6.25%
+
+    每15分钟：
+    100% ÷ 64 = 1.5625%
   */
 
   background-image:
@@ -301,8 +294,8 @@ button {
     );
 
   background-size:
-    10% 100%,
-    2.5% 100%;
+    6.25% 100%,
+    1.5625% 100%;
 }
 
 .timeline-row:hover {
@@ -376,7 +369,7 @@ button {
 }
 
 /* ========================================
-   Explicit scrolling controls
+   Scroll controls
    ======================================== */
 
 .schedule-scroll-controls {
@@ -411,6 +404,11 @@ button {
   background: #f8fafc;
 }
 
+.schedule-scroll-controls button:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
 .schedule-scroll-controls span {
   overflow: hidden;
 
@@ -420,7 +418,7 @@ button {
 }
 
 /* ========================================
-   Strong visible scrollbar
+   Visible scrollbar
    ======================================== */
 
 .schedule-card::-webkit-scrollbar {
@@ -567,6 +565,11 @@ dialog input:focus {
   filter: brightness(0.96);
 }
 
+.dialog-buttons button:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
 .button-spacer {
   flex: 1;
 }
@@ -602,7 +605,7 @@ dialog input:focus {
 }
 
 /* ========================================
-   Teams narrow view
+   Narrow Teams view
    ======================================== */
 
 @media (max-width: 800px) {
@@ -620,6 +623,7 @@ dialog input:focus {
 
   .resource-name {
     padding: 7px 9px;
+
     font-size: 11px;
   }
 
