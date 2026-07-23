@@ -1,102 +1,168 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8">
 
   <meta
     name="viewport"
     content="width=device-width, initial-scale=1.0"
-  />
+  >
 
   <title>Pickel Lab Equipment Schedule</title>
 
-  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="style.css">
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 
 <body>
   <main class="app">
+
     <header class="header">
       <div>
         <h1>Equipment Schedule</h1>
         <p>Pickel Lab</p>
       </div>
-
-      <div class="date-controls">
-        <button id="previous-day" type="button">←</button>
-        <button id="today-button" type="button">Today</button>
-        <button id="next-day" type="button">→</button>
-
-        <input id="date-picker" type="date" />
-      </div>
     </header>
 
+    <div class="schedule-toolbar">
+      <div class="date-controls">
+
+        <button
+          id="previous-day"
+          type="button"
+          aria-label="Previous day"
+        >
+          ←
+        </button>
+
+        <button
+          id="today-button"
+          type="button"
+        >
+          Today
+        </button>
+
+        <button
+          id="next-day"
+          type="button"
+          aria-label="Next day"
+        >
+          →
+        </button>
+
+        <input
+          id="date-picker"
+          type="date"
+          aria-label="Select date"
+        >
+
+      </div>
+    </div>
+
     <section class="schedule-card">
-      <div id="schedule" class="schedule"></div>
+      <div
+        id="schedule"
+        class="schedule"
+      ></div>
     </section>
 
-    <p id="status-message" class="status-message"></p>
+    <p
+      id="status-message"
+      class="status-message"
+    ></p>
+
   </main>
 
   <dialog id="reservation-dialog">
-    <form id="reservation-form">
-      <h2>Add Reservation</h2>
 
-      <input id="reservation-id" type="hidden" />
-      <input id="resource-id" type="hidden" />
+    <form id="reservation-form">
+
+      <h2 id="dialog-title">
+        Add Reservation
+      </h2>
+
+      <input
+        id="reservation-id"
+        type="hidden"
+      >
+
+      <input
+        id="resource-id"
+        type="hidden"
+      >
 
       <label>
         Equipment
-        <input id="resource-name" type="text" disabled />
+
+        <input
+          id="resource-name"
+          type="text"
+          disabled
+        >
       </label>
 
       <label>
         Your name
+
         <input
           id="person-name"
           type="text"
           maxlength="50"
+          placeholder="Enter your name"
           required
-        />
+        >
       </label>
 
       <label>
         Description
+
         <input
           id="reservation-title"
           type="text"
           maxlength="100"
           placeholder="Example: UCNP heating experiment"
           required
-        />
+        >
       </label>
 
       <div class="time-inputs">
+
         <label>
           Start
+
           <input
             id="start-time"
             type="time"
+            min="08:00"
+            max="18:00"
             step="900"
             required
-          />
+          >
         </label>
 
         <label>
           End
+
           <input
             id="end-time"
             type="time"
+            min="08:00"
+            max="18:00"
             step="900"
             required
-          />
+          >
         </label>
+
       </div>
 
-      <p id="form-error" class="form-error"></p>
+      <p
+        id="form-error"
+        class="form-error"
+      ></p>
 
       <div class="dialog-buttons">
+
         <button
           id="delete-button"
           class="danger-button hidden"
@@ -120,8 +186,11 @@
         >
           Save
         </button>
+
       </div>
+
     </form>
+
   </dialog>
 
   <script src="app.js"></script>
