@@ -28,8 +28,11 @@ const resources = [
 ];
 
 /*
-  Display range:
+  Visible schedule range:
   8:00 AM to 6:00 PM
+
+  6 PM is a valid booking end time,
+  but it is not displayed as a header label.
 */
 
 const DISPLAY_START_HOUR = 8;
@@ -103,8 +106,6 @@ async function initialize() {
 
   /*
     Render the empty schedule immediately.
-    This ensures the table remains visible
-    even if the database cannot load.
   */
 
   renderSchedule();
@@ -173,6 +174,10 @@ function attachEventListeners() {
     deleteReservation
   );
 
+  /*
+    Close dialog when the user clicks outside it.
+  */
+
   dialog.addEventListener(
     "click",
     event => {
@@ -184,11 +189,12 @@ function attachEventListeners() {
 }
 
 /*
-  Change selected date
+  Date navigation
 */
 
 function changeDate(numberOfDays) {
-  const date = selectedLocalDate();
+  const date =
+    selectedLocalDate();
 
   date.setDate(
     date.getDate() + numberOfDays
@@ -199,7 +205,7 @@ function changeDate(numberOfDays) {
 }
 
 /*
-  Load reservations
+  Load reservations from Supabase
 */
 
 async function loadReservations() {
@@ -271,7 +277,16 @@ function renderSchedule() {
 }
 
 /*
-  Create time-axis header
+  Create timeline header
+
+  Important:
+  Use hour < DISPLAY_END_HOUR.
+
+  This displays:
+  8 AM, 9 AM, ..., 5 PM
+
+  It does not display 6 PM.
+  The right edge of the grid still represents 6 PM.
 */
 
 function createScheduleHeader() {
@@ -295,7 +310,7 @@ function createScheduleHeader() {
 
   for (
     let hour = DISPLAY_START_HOUR;
-    hour <= DISPLAY_END_HOUR;
+    hour < DISPLAY_END_HOUR;
     hour += 1
   ) {
     const label =
@@ -307,22 +322,10 @@ function createScheduleHeader() {
     const minutesFromStart =
       (hour - DISPLAY_START_HOUR) * 60;
 
-    const position =
-      minutesToPercent(
-        minutesFromStart
-      );
-
     label.style.left =
-      `${position}%`;
-
-    /*
-      Keep 6 PM inside the right edge.
-    */
-
-    if (hour === DISPLAY_END_HOUR) {
-      label.style.transform =
-        "translateX(-100%)";
-    }
+      `${minutesToPercent(
+        minutesFromStart
+      )}%`;
 
     label.textContent =
       formatHourLabel(hour);
@@ -407,7 +410,7 @@ function createResourceRow(resource) {
 }
 
 /*
-  Create a reservation block
+  Create reservation block
 */
 
 function createReservationBlock(
@@ -446,6 +449,11 @@ function createReservationBlock(
       reservation.end_time
     );
 
+  /*
+    Ignore reservations completely outside
+    the visible 8 AM–6 PM range.
+  */
+
   if (
     end <= displayStart ||
     start >= displayEnd
@@ -481,7 +489,8 @@ function createReservationBlock(
   const block =
     document.createElement("button");
 
-  block.type = "button";
+  block.type =
+    "button";
 
   block.className =
     "reservation";
@@ -568,6 +577,10 @@ function openCreateDialog(
     DISPLAY_START_HOUR * 60 +
     fraction * DISPLAY_MINUTES;
 
+  /*
+    Round to nearest 15 minutes.
+  */
+
   selectedMinutes =
     Math.round(
       selectedMinutes / 15
@@ -579,6 +592,10 @@ function openCreateDialog(
   const maximumMinutes =
     DISPLAY_END_HOUR * 60;
 
+  /*
+    Latest possible start is 5:45 PM.
+  */
+
   selectedMinutes =
     Math.max(
       minimumMinutes,
@@ -587,6 +604,11 @@ function openCreateDialog(
         maximumMinutes - 15
       )
     );
+
+  /*
+    Default reservation duration is one hour,
+    but never later than 6 PM.
+  */
 
   const endMinutes =
     Math.min(
@@ -680,16 +702,20 @@ function openEditDialog(
 }
 
 /*
-  Clear dialog
+  Reset dialog
 */
 
 function clearDialog() {
   form.reset();
 
-  reservationIdInput.value = "";
-  resourceIdInput.value = "";
+  reservationIdInput.value =
+    "";
 
-  formError.textContent = "";
+  resourceIdInput.value =
+    "";
+
+  formError.textContent =
+    "";
 }
 
 /*
@@ -699,7 +725,8 @@ function clearDialog() {
 async function saveReservation(event) {
   event.preventDefault();
 
-  formError.textContent = "";
+  formError.textContent =
+    "";
 
   const reservationId =
     reservationIdInput.value;
@@ -776,6 +803,10 @@ async function saveReservation(event) {
     0
   );
 
+  /*
+    Ending exactly at 6 PM is allowed.
+  */
+
   if (
     start < displayStart ||
     end > displayEnd
@@ -791,6 +822,10 @@ async function saveReservation(event) {
 
     return;
   }
+
+  /*
+    Check time conflicts.
+  */
 
   const hasConflict =
     currentReservations.some(
@@ -847,17 +882,19 @@ async function saveReservation(event) {
   let result;
 
   if (reservationId) {
-    result = await database
-      .from("reservations")
-      .update(record)
-      .eq(
-        "id",
-        reservationId
-      );
+    result =
+      await database
+        .from("reservations")
+        .update(record)
+        .eq(
+          "id",
+          reservationId
+        );
   } else {
-    result = await database
-      .from("reservations")
-      .insert(record);
+    result =
+      await database
+        .from("reservations")
+        .insert(record);
   }
 
   if (result.error) {
@@ -921,7 +958,7 @@ async function deleteReservation() {
 }
 
 /*
-  Selected date at local midnight
+  Get selected date at local midnight
 */
 
 function selectedLocalDate() {
@@ -946,7 +983,7 @@ function selectedLocalDate() {
 }
 
 /*
-  Combine date and time
+  Combine selected date and time
 */
 
 function combineSelectedDateAndTime(
@@ -974,7 +1011,7 @@ function combineSelectedDateAndTime(
 }
 
 /*
-  Minutes to percentage
+  Convert minutes to timeline percentage
 */
 
 function minutesToPercent(minutes) {
@@ -985,7 +1022,7 @@ function minutesToPercent(minutes) {
 }
 
 /*
-  Minutes to HH:MM
+  Convert minutes to HH:MM
 */
 
 function minutesToTimeInput(
@@ -1009,7 +1046,7 @@ function minutesToTimeInput(
 }
 
 /*
-  Date to HH:MM
+  Convert Date to HH:MM
 */
 
 function dateToTimeInput(date) {
@@ -1025,7 +1062,7 @@ function dateToTimeInput(date) {
 }
 
 /*
-  Date to YYYY-MM-DD
+  Convert Date to YYYY-MM-DD
 */
 
 function formatDateInput(date) {
@@ -1048,7 +1085,7 @@ function formatDateInput(date) {
 }
 
 /*
-  Hour label
+  Format hour label
 */
 
 function formatHourLabel(hour) {
@@ -1066,7 +1103,7 @@ function formatHourLabel(hour) {
 }
 
 /*
-  Reservation time label
+  Format displayed reservation time
 */
 
 function formatTime(date) {
@@ -1080,7 +1117,7 @@ function formatTime(date) {
 }
 
 /*
-  Status text
+  Status message
 */
 
 function setStatus(message) {

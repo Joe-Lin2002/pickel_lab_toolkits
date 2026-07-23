@@ -15,6 +15,7 @@
 html,
 body {
   width: 100%;
+  min-width: 0;
   min-height: 100%;
   margin: 0;
 }
@@ -32,15 +33,17 @@ button {
   cursor: pointer;
 }
 
-/* =========================
-   Main layout
-   ========================= */
+/* ========================================
+   Main page
+   ======================================== */
 
 .app {
   width: 100%;
+  min-width: 0;
   max-width: none;
+
   margin: 0;
-  padding: 18px;
+  padding: 16px;
 }
 
 .header {
@@ -49,23 +52,29 @@ button {
 
 .header h1 {
   margin: 0;
+
   font-size: 28px;
   line-height: 1.2;
 }
 
 .header p {
   margin: 4px 0 0;
+
   color: #6b7280;
 }
 
-/* =========================
+/* ========================================
    Date controls
-   ========================= */
+   ======================================== */
 
 .schedule-toolbar {
   display: flex;
   justify-content: flex-start;
   align-items: center;
+
+  width: 100%;
+  min-width: 0;
+
   margin-bottom: 10px;
 }
 
@@ -73,19 +82,22 @@ button {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
+
+  min-width: 0;
   gap: 8px;
 }
 
 .date-controls button,
 .date-controls input {
   min-height: 38px;
+
   padding: 7px 11px;
 
   border: 1px solid #d1d5db;
   border-radius: 6px;
 
-  background: white;
   color: #1f2937;
+  background: white;
 }
 
 .date-controls button:hover,
@@ -100,79 +112,66 @@ button {
 }
 
 .date-controls input {
-  width: auto;
-  max-width: 165px;
+  width: 155px;
+  max-width: 100%;
 }
 
-/* =========================
-   Schedule container
-   ========================= */
+/* ========================================
+   Schedule outer card
+   ======================================== */
 
 .schedule-card {
+  display: block;
+
   width: 100%;
+  min-width: 0;
   max-width: 100%;
 
-  overflow-x: auto;
-  overflow-y: hidden;
+  overflow: hidden;
 
   border: 1px solid #cbd5e1;
   border-radius: 8px;
 
   background: white;
-
-  scrollbar-gutter: stable;
-  -webkit-overflow-scrolling: touch;
-
-  scrollbar-width: thin;
-  scrollbar-color: #94a3b8 #e5e7eb;
 }
-
-/*
-  The schedule fills all available width.
-
-  Minimum size:
-  160 px equipment column
-  780 px timeline
-*/
 
 .schedule {
+  display: block;
+
   width: 100%;
-  min-width: 940px;
+  min-width: 0;
+  max-width: 100%;
 }
 
-/* =========================
+/* ========================================
    Schedule grid
-   ========================= */
+   ======================================== */
 
 .schedule-header,
 .resource-row {
   display: grid;
 
-  /*
-    Equipment names stay fixed.
-    Timeline expands to use remaining width.
-  */
+  width: 100%;
+  min-width: 0;
 
   grid-template-columns:
-    160px
-    minmax(780px, 1fr);
+    145px
+    minmax(0, 1fr);
 }
 
 .corner-cell,
 .resource-name {
-  position: sticky;
-  left: 0;
-  z-index: 10;
-
-  width: 160px;
-  min-width: 160px;
+  width: 145px;
+  min-width: 0;
 
   border-right: 1px solid #cbd5e1;
+
   background: #f8fafc;
 }
 
 .corner-cell {
-  height: 44px;
+  height: 42px;
+
   border-bottom: 1px solid #cbd5e1;
 }
 
@@ -181,11 +180,12 @@ button {
 
   width: 100%;
   min-width: 0;
-  height: 44px;
+  height: 42px;
 
-  overflow: visible;
+  overflow: hidden;
 
   border-bottom: 1px solid #cbd5e1;
+
   background: #f8fafc;
 }
 
@@ -194,41 +194,38 @@ button {
   top: 0;
 
   height: 100%;
-  padding: 13px 5px;
+
+  padding: 12px 4px;
 
   border-left: 1px solid #dbe3ec;
 
-  font-size: 12px;
+  font-size: 11px;
   white-space: nowrap;
 
   transform: translateX(-1px);
 }
 
-/*
-  The final hour label is positioned at 100%.
-  Move it left so the text remains inside the table.
-*/
-
-.hour-label:last-child {
-  transform: translateX(-100%);
-}
-
-/* =========================
+/* ========================================
    Equipment rows
-   ========================= */
+   ======================================== */
 
 .resource-name {
   display: flex;
   align-items: center;
 
-  min-height: 64px;
-  padding: 10px 14px;
+  min-height: 60px;
 
-  overflow-wrap: anywhere;
+  padding: 8px 12px;
 
-  font-size: 14px;
-  font-weight: 600;
+  overflow: hidden;
+
   color: #0369a1;
+
+  font-size: 13px;
+  font-weight: 600;
+
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .timeline-row {
@@ -236,9 +233,22 @@ button {
 
   width: 100%;
   min-width: 0;
-  min-height: 64px;
+  min-height: 60px;
+
+  overflow: hidden;
 
   cursor: crosshair;
+
+  /*
+    Total time range:
+    8 AM to 6 PM = 10 hours
+
+    Major lines:
+    10 hourly divisions
+
+    Minor lines:
+    40 fifteen-minute divisions
+  */
 
   background-image:
     linear-gradient(
@@ -252,14 +262,9 @@ button {
       transparent 1px
     );
 
-  /*
-    10 one-hour divisions
-    40 fifteen-minute divisions
-  */
-
   background-size:
-    calc(100% / 10) 100%,
-    calc(100% / 40) 100%;
+    10% 100%,
+    2.5% 100%;
 }
 
 .timeline-row:hover {
@@ -270,19 +275,21 @@ button {
   border-bottom: 1px solid #cbd5e1;
 }
 
-/* =========================
+/* ========================================
    Reservation blocks
-   ========================= */
+   ======================================== */
 
 .reservation {
   position: absolute;
-  top: 9px;
+  top: 8px;
 
-  height: 46px;
-  min-width: 24px;
+  height: 44px;
+  min-width: 12px;
+  max-width: 100%;
+
   overflow: hidden;
 
-  padding: 6px 8px;
+  padding: 5px 7px;
 
   border: 0;
   border-radius: 5px;
@@ -291,7 +298,7 @@ button {
   background: #0369a1;
 
   text-align: left;
-  line-height: 1.2;
+  line-height: 1.15;
 
   box-shadow: 0 1px 3px rgb(0 0 0 / 20%);
 }
@@ -307,9 +314,10 @@ button {
 
 .reservation-title {
   display: block;
+
   overflow: hidden;
 
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 700;
 
   text-overflow: ellipsis;
@@ -318,35 +326,40 @@ button {
 
 .reservation-details {
   display: block;
+
   overflow: hidden;
 
   margin-top: 2px;
 
-  font-size: 11px;
+  font-size: 10px;
 
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-/* =========================
-   Status message
-   ========================= */
+/* ========================================
+   Status text
+   ======================================== */
 
 .status-message {
-  min-height: 24px;
-  margin: 10px 0 0;
+  min-height: 22px;
+
+  margin: 8px 0 0;
+
   color: #475569;
+  font-size: 13px;
 }
 
-/* =========================
-   Reservation dialog
-   ========================= */
+/* ========================================
+   Dialog
+   ======================================== */
 
 dialog {
   width: min(500px, calc(100% - 30px));
   max-height: calc(100vh - 40px);
 
   padding: 0;
+
   overflow-y: auto;
 
   border: 0;
@@ -371,42 +384,49 @@ dialog h2 {
 
 dialog label {
   display: block;
+
   margin-bottom: 16px;
+
   font-weight: 600;
 }
 
 dialog input {
   width: 100%;
+
   margin-top: 6px;
   padding: 10px;
 
   border: 1px solid #cbd5e1;
   border-radius: 6px;
 
-  background: white;
   color: #1f2937;
+  background: white;
 }
 
 dialog input:disabled {
-  background: #f1f5f9;
   color: #475569;
+  background: #f1f5f9;
 }
 
 dialog input:focus {
+  border-color: #0284c7;
+
   outline: 2px solid #38bdf8;
   outline-offset: 1px;
-  border-color: #0284c7;
 }
 
 .time-inputs {
   display: grid;
+
   grid-template-columns: 1fr 1fr;
+
   gap: 14px;
 }
 
 .dialog-buttons {
   display: flex;
   align-items: center;
+
   gap: 10px;
 
   margin-top: 22px;
@@ -431,13 +451,17 @@ dialog input:focus {
 
 .primary-button {
   color: white;
+
   border-color: #0369a1 !important;
+
   background: #0369a1 !important;
 }
 
 .danger-button {
   color: white;
+
   border-color: #b91c1c !important;
+
   background: #b91c1c !important;
 }
 
@@ -447,148 +471,147 @@ dialog input:focus {
 
 .form-error {
   min-height: 20px;
+
   margin: 0;
 
   color: #b91c1c;
+
   font-size: 14px;
 }
 
-/* =========================
-   Horizontal scrollbar
-   ========================= */
-
-.schedule-card::-webkit-scrollbar {
-  height: 11px;
-}
-
-.schedule-card::-webkit-scrollbar-track {
-  background: #e5e7eb;
-}
-
-.schedule-card::-webkit-scrollbar-thumb {
-  background: #94a3b8;
-
-  border: 3px solid #e5e7eb;
-  border-radius: 999px;
-}
-
-.schedule-card::-webkit-scrollbar-thumb:hover {
-  background: #64748b;
-}
-
-/* =========================
-   Teams / medium width
-   ========================= */
+/* ========================================
+   Teams medium-width view
+   ======================================== */
 
 @media (max-width: 1100px) {
   .app {
-    padding: 14px;
-  }
-
-  .schedule {
-    width: 100%;
-    min-width: 845px;
-  }
-
-  .schedule-header,
-  .resource-row {
-    grid-template-columns:
-      145px
-      minmax(700px, 1fr);
-  }
-
-  .corner-cell,
-  .resource-name {
-    width: 145px;
-    min-width: 145px;
-  }
-
-  .timeline-header,
-  .timeline-row {
-    width: 100%;
-  }
-
-  .resource-name {
-    padding: 9px 11px;
-    font-size: 13px;
-  }
-
-  .hour-label {
-    font-size: 11px;
-  }
-}
-
-/* =========================
-   Narrow Teams / tablet
-   ========================= */
-
-@media (max-width: 760px) {
-  .app {
-    padding: 10px;
-  }
-
-  .header h1 {
-    font-size: 23px;
-  }
-
-  .schedule-toolbar {
-    align-items: flex-start;
-  }
-
-  .date-controls {
-    width: 100%;
-  }
-
-  .schedule {
-    width: 100%;
-    min-width: 770px;
+    padding: 12px;
   }
 
   .schedule-header,
   .resource-row {
     grid-template-columns:
       130px
-      minmax(640px, 1fr);
+      minmax(0, 1fr);
   }
 
   .corner-cell,
   .resource-name {
     width: 130px;
-    min-width: 130px;
-  }
-
-  .timeline-header,
-  .timeline-row {
-    width: 100%;
   }
 
   .resource-name {
-    padding: 8px 10px;
+    padding: 8px 9px;
+
     font-size: 12px;
+  }
+
+  .hour-label {
+    padding-right: 2px;
+    padding-left: 2px;
+
+    font-size: 10px;
+  }
+}
+
+/* ========================================
+   Narrow Teams view
+   ======================================== */
+
+@media (max-width: 800px) {
+  .app {
+    padding: 8px;
+  }
+
+  .header h1 {
+    font-size: 22px;
+  }
+
+  .header p {
+    font-size: 13px;
+  }
+
+  .schedule-header,
+  .resource-row {
+    grid-template-columns:
+      112px
+      minmax(0, 1fr);
+  }
+
+  .corner-cell,
+  .resource-name {
+    width: 112px;
+  }
+
+  .resource-name {
+    padding: 7px;
+
+    font-size: 11px;
+  }
+
+  .timeline-header,
+  .corner-cell {
+    height: 38px;
+  }
+
+  .hour-label {
+    padding-top: 11px;
+
+    font-size: 9px;
+  }
+
+  .resource-name,
+  .timeline-row {
+    min-height: 56px;
+  }
+
+  .reservation {
+    top: 7px;
+
+    height: 42px;
   }
 
   .time-inputs {
     grid-template-columns: 1fr;
   }
-
-  dialog form {
-    padding: 18px;
-  }
 }
 
-/* =========================
-   Small mobile view
-   ========================= */
+/* ========================================
+   Very narrow Teams view
+   ======================================== */
 
-@media (max-width: 480px) {
-  .date-controls {
-    gap: 6px;
+@media (max-width: 600px) {
+  .schedule-header,
+  .resource-row {
+    grid-template-columns:
+      96px
+      minmax(0, 1fr);
   }
 
-  .date-controls button,
-  .date-controls input {
-    min-height: 36px;
-    padding: 6px 9px;
+  .corner-cell,
+  .resource-name {
+    width: 96px;
+  }
+
+  .resource-name {
+    font-size: 10px;
+  }
+
+  .hour-label {
+    font-size: 8px;
+  }
+
+  .reservation {
+    padding-right: 4px;
+    padding-left: 4px;
+  }
+
+  .reservation-title {
+    font-size: 10px;
+  }
+
+  .reservation-details {
+    font-size: 8px;
   }
 
   .dialog-buttons {
