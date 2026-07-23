@@ -7,14 +7,9 @@
   color: #1f2937;
   background: #f3f4f6;
 
-  /*
-    下面三个值会由 JavaScript 根据
-    Teams iframe 的实际宽度动态调整。
-  */
-
   --resource-column-width: 145px;
-  --timeline-min-width: 720px;
-  --schedule-min-width: 865px;
+  --timeline-width: 820px;
+  --schedule-width: 965px;
 }
 
 * {
@@ -30,7 +25,12 @@ body {
 }
 
 body {
-  overflow-x: hidden;
+  /*
+    不再使用 overflow-x: hidden。
+    即使 Teams 对内部滚动处理异常，
+    页面也不会直接把右侧内容永久裁掉。
+  */
+  overflow-x: auto;
 }
 
 button,
@@ -99,7 +99,6 @@ button {
 .date-controls button,
 .date-controls input {
   min-height: 38px;
-
   padding: 7px 11px;
 
   border: 1px solid #d1d5db;
@@ -126,8 +125,20 @@ button {
 }
 
 /* ========================================
-   Schedule card
+   Schedule section
    ======================================== */
+
+.schedule-section {
+  width: 100%;
+  min-width: 0;
+}
+
+/*
+  This is the actual scrolling window.
+
+  The width stays equal to the Teams tab width.
+  The internal .schedule canvas is wider.
+*/
 
 .schedule-card {
   display: block;
@@ -136,11 +147,7 @@ button {
   min-width: 0;
   max-width: 100%;
 
-  /*
-    Teams 较窄时允许横向滚动。
-  */
-
-  overflow-x: auto;
+  overflow-x: scroll;
   overflow-y: hidden;
 
   border: 1px solid #cbd5e1;
@@ -148,22 +155,32 @@ button {
 
   background: white;
 
-  scrollbar-width: thin;
-  scrollbar-color: #94a3b8 #e5e7eb;
+  scrollbar-width: auto;
+  scrollbar-color: #64748b #e5e7eb;
 
   -webkit-overflow-scrolling: touch;
+
+  /*
+    Prevent the wide internal grid from changing
+    the width of this scrolling container.
+  */
+  contain: inline-size;
+  overscroll-behavior-x: contain;
 }
 
 /*
-  宽屏时铺满剩余宽度。
-  窄屏时保持最低可读宽度。
+  This is the wide internal canvas.
+
+  JavaScript sets an explicit pixel width.
+  It must be wider than schedule-card when Teams is narrow.
 */
 
 .schedule {
   display: block;
 
-  width: max(100%, var(--schedule-min-width));
-  min-width: var(--schedule-min-width);
+  width: var(--schedule-width);
+  min-width: var(--schedule-width);
+  max-width: none;
 }
 
 /* ========================================
@@ -174,19 +191,19 @@ button {
 .resource-row {
   display: grid;
 
-  width: 100%;
-  min-width: var(--schedule-min-width);
+  width: var(--schedule-width);
+  min-width: var(--schedule-width);
 
   grid-template-columns:
     var(--resource-column-width)
-    minmax(var(--timeline-min-width), 1fr);
+    var(--timeline-width);
 }
 
 .corner-cell,
 .resource-name {
   position: sticky;
   left: 0;
-  z-index: 10;
+  z-index: 20;
 
   width: var(--resource-column-width);
   min-width: var(--resource-column-width);
@@ -205,8 +222,8 @@ button {
 .timeline-header {
   position: relative;
 
-  width: 100%;
-  min-width: var(--timeline-min-width);
+  width: var(--timeline-width);
+  min-width: var(--timeline-width);
   height: 42px;
 
   overflow: hidden;
@@ -221,7 +238,6 @@ button {
   top: 0;
 
   height: 100%;
-
   padding: 12px 4px;
 
   border-left: 1px solid #dbe3ec;
@@ -241,7 +257,6 @@ button {
   align-items: center;
 
   min-height: 60px;
-
   padding: 8px 12px;
 
   overflow: hidden;
@@ -258,8 +273,8 @@ button {
 .timeline-row {
   position: relative;
 
-  width: 100%;
-  min-width: var(--timeline-min-width);
+  width: var(--timeline-width);
+  min-width: var(--timeline-width);
   min-height: 60px;
 
   overflow: hidden;
@@ -267,10 +282,10 @@ button {
   cursor: crosshair;
 
   /*
-    8 AM 至 6 PM，共 10 小时。
+    8 AM to 6 PM = 10 hours.
 
-    10% = 1 小时
-    2.5% = 15 分钟
+    10% = one hour
+    2.5% = fifteen minutes
   */
 
   background-image:
@@ -361,6 +376,75 @@ button {
 }
 
 /* ========================================
+   Explicit scrolling controls
+   ======================================== */
+
+.schedule-scroll-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+
+  width: 100%;
+  gap: 10px;
+
+  margin-top: 8px;
+
+  color: #64748b;
+  font-size: 12px;
+}
+
+.schedule-scroll-controls button {
+  flex: 0 0 auto;
+
+  min-height: 32px;
+  padding: 5px 10px;
+
+  border: 1px solid #cbd5e1;
+  border-radius: 5px;
+
+  color: #334155;
+  background: white;
+}
+
+.schedule-scroll-controls button:hover {
+  border-color: #94a3b8;
+  background: #f8fafc;
+}
+
+.schedule-scroll-controls span {
+  overflow: hidden;
+
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ========================================
+   Strong visible scrollbar
+   ======================================== */
+
+.schedule-card::-webkit-scrollbar {
+  height: 16px;
+}
+
+.schedule-card::-webkit-scrollbar-track {
+  background: #e5e7eb;
+}
+
+.schedule-card::-webkit-scrollbar-thumb {
+  min-width: 60px;
+
+  background: #64748b;
+
+  border: 3px solid #e5e7eb;
+  border-radius: 999px;
+}
+
+.schedule-card::-webkit-scrollbar-thumb:hover {
+  background: #475569;
+}
+
+/* ========================================
    Status
    ======================================== */
 
@@ -374,6 +458,24 @@ button {
 }
 
 /* ========================================
+   Footer
+   ======================================== */
+
+.footer {
+  width: 100%;
+
+  margin-top: 18px;
+  padding: 12px 0 4px;
+
+  border-top: 1px solid #dbe3ec;
+
+  color: #64748b;
+
+  font-size: 12px;
+  text-align: center;
+}
+
+/* ========================================
    Dialog
    ======================================== */
 
@@ -382,7 +484,6 @@ dialog {
   max-height: calc(100vh - 40px);
 
   padding: 0;
-
   overflow-y: auto;
 
   border: 0;
@@ -501,30 +602,7 @@ dialog input:focus {
 }
 
 /* ========================================
-   Scrollbar
-   ======================================== */
-
-.schedule-card::-webkit-scrollbar {
-  height: 12px;
-}
-
-.schedule-card::-webkit-scrollbar-track {
-  background: #e5e7eb;
-}
-
-.schedule-card::-webkit-scrollbar-thumb {
-  background: #94a3b8;
-
-  border: 3px solid #e5e7eb;
-  border-radius: 999px;
-}
-
-.schedule-card::-webkit-scrollbar-thumb:hover {
-  background: #64748b;
-}
-
-/* ========================================
-   Narrow Teams viewport
+   Teams narrow view
    ======================================== */
 
 @media (max-width: 800px) {
@@ -547,6 +625,10 @@ dialog input:focus {
 
   .hour-label {
     font-size: 10px;
+  }
+
+  .schedule-scroll-controls span {
+    display: none;
   }
 
   .time-inputs {

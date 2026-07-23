@@ -10,13 +10,10 @@
 
   <title>Pickel Lab Equipment Schedule</title>
 
-  <!--
-    修改代码后，可以递增版本号，强制 Teams 加载新文件。
-    例如从 v=6 改为 v=7。
-  -->
+  <!-- 每次更新代码后递增版本号，避免 Teams 使用旧缓存 -->
   <link
     rel="stylesheet"
-    href="style.css?v=6"
+    href="style.css?v=20260723-10"
   >
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -65,20 +62,54 @@
       </div>
     </div>
 
-    <section
-      id="schedule-card"
-      class="schedule-card"
-    >
+    <section class="schedule-section">
+
       <div
-        id="schedule"
-        class="schedule"
-      ></div>
+        id="schedule-card"
+        class="schedule-card"
+        tabindex="0"
+        aria-label="Equipment schedule. Scroll horizontally to see later times."
+      >
+        <div
+          id="schedule"
+          class="schedule"
+        ></div>
+      </div>
+
+      <div class="schedule-scroll-controls">
+
+        <button
+          id="scroll-left"
+          type="button"
+          aria-label="Scroll schedule left"
+        >
+          ← Earlier
+        </button>
+
+        <span>
+          Scroll horizontally to view later times
+        </span>
+
+        <button
+          id="scroll-right"
+          type="button"
+          aria-label="Scroll schedule right"
+        >
+          Later →
+        </button>
+
+      </div>
+
     </section>
 
     <p
       id="status-message"
       class="status-message"
     ></p>
+
+    <footer class="footer">
+      Developed by Junyi Lin · July 2026
+    </footer>
 
   </main>
 
@@ -201,6 +232,6 @@
 
   </dialog>
 
-  <script src="app.js?v=6"></script>
+  <script src="app.js?v=20260723-10"></script>
 </body>
 </html>

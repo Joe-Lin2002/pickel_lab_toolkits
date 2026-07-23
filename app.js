@@ -8,9 +8,9 @@ const database = supabase.createClient(
   SUPABASE_KEY
 );
 
-/*
-  Equipment list
-*/
+/* =========================================================
+   Equipment configuration
+   ========================================================= */
 
 const resources = [
   {
@@ -27,13 +27,16 @@ const resources = [
   },
 ];
 
-/*
-  Schedule range:
-  8:00 AM to 6:00 PM
+/* =========================================================
+   Schedule configuration
 
-  6 PM is allowed as an end time,
-  but is not displayed in the header.
-*/
+   The timeline runs from 8:00 AM to 6:00 PM.
+
+   The header displays 8 AM through 5 PM.
+   The right edge of the timeline represents 6 PM.
+
+   Users may end a reservation exactly at 6:00 PM.
+   ========================================================= */
 
 const DISPLAY_START_HOUR = 8;
 const DISPLAY_END_HOUR = 18;
@@ -44,9 +47,13 @@ const HOURS_VISIBLE =
 const DISPLAY_MINUTES =
   HOURS_VISIBLE * 60;
 
-/*
-  HTML elements
-*/
+const MINIMUM_HOUR_WIDTH = 82;
+const DEFAULT_RESERVATION_MINUTES = 60;
+const TIME_INCREMENT_MINUTES = 15;
+
+/* =========================================================
+   HTML elements
+   ========================================================= */
 
 const scheduleElement =
   document.querySelector("#schedule");
@@ -96,26 +103,51 @@ const formError =
 const deleteButton =
   document.querySelector("#delete-button");
 
-let currentReservations = [];
+const cancelButton =
+  document.querySelector("#cancel-button");
 
+const previousDayButton =
+  document.querySelector("#previous-day");
+
+const todayButton =
+  document.querySelector("#today-button");
+
+const nextDayButton =
+  document.querySelector("#next-day");
+
+const scrollLeftButton =
+  document.querySelector("#scroll-left");
+
+const scrollRightButton =
+  document.querySelector("#scroll-right");
+
+/* =========================================================
+   Application state
+   ========================================================= */
+
+let currentReservations = [];
 let scheduleResizeObserver = null;
 
-/*
-  Start application
-*/
+/* =========================================================
+   Start application
+   ========================================================= */
 
 initialize();
 
 async function initialize() {
+  validateRequiredElements();
+
   datePicker.value =
     formatDateInput(new Date());
 
   attachEventListeners();
 
   initializeResponsiveSchedule();
+  initializeScheduleScrolling();
 
   /*
-    Render empty schedule first.
+    Render the empty schedule immediately so the grid remains
+    visible even if Supabase cannot be reached.
   */
 
   renderSchedule();
@@ -123,46 +155,87 @@ async function initialize() {
   await loadReservations();
 }
 
-/*
-  Event listeners
-*/
+/* =========================================================
+   Validate required HTML elements
+   ========================================================= */
+
+function validateRequiredElements() {
+  const requiredElements = {
+    scheduleElement,
+    scheduleCard,
+    datePicker,
+    statusMessage,
+    dialog,
+    dialogTitle,
+    form,
+    reservationIdInput,
+    resourceIdInput,
+    resourceNameInput,
+    personNameInput,
+    titleInput,
+    startTimeInput,
+    endTimeInput,
+    formError,
+    deleteButton,
+    cancelButton,
+    previousDayButton,
+    todayButton,
+    nextDayButton,
+  };
+
+  const missingElements =
+    Object.entries(requiredElements)
+      .filter(([, element]) => !element)
+      .map(([name]) => name);
+
+  if (missingElements.length > 0) {
+    throw new Error(
+      `Missing required HTML elements: ${missingElements.join(", ")}`
+    );
+  }
+}
+
+/* =========================================================
+   Event listeners
+   ========================================================= */
 
 function attachEventListeners() {
-  document
-    .querySelector("#previous-day")
-    .addEventListener(
-      "click",
-      async () => {
-        changeDate(-1);
-        await loadReservations();
-      }
-    );
+  previousDayButton.addEventListener(
+    "click",
+    async () => {
+      changeDate(-1);
+      resetScheduleScroll();
+      await loadReservations();
+    }
+  );
 
-  document
-    .querySelector("#next-day")
-    .addEventListener(
-      "click",
-      async () => {
-        changeDate(1);
-        await loadReservations();
-      }
-    );
+  nextDayButton.addEventListener(
+    "click",
+    async () => {
+      changeDate(1);
+      resetScheduleScroll();
+      await loadReservations();
+    }
+  );
 
-  document
-    .querySelector("#today-button")
-    .addEventListener(
-      "click",
-      async () => {
-        datePicker.value =
-          formatDateInput(new Date());
+  todayButton.addEventListener(
+    "click",
+    async () => {
+      datePicker.value =
+        formatDateInput(new Date());
 
-        await loadReservations();
-      }
-    );
+      resetScheduleScroll();
+
+      await loadReservations();
+    }
+  );
 
   datePicker.addEventListener(
     "change",
-    loadReservations
+    async () => {
+      resetScheduleScroll();
+      await loadReservations();
+    }
   );
 
   form.addEventListener(
@@ -170,14 +243,12 @@ function attachEventListeners() {
     saveReservation
   );
 
-  document
-    .querySelector("#cancel-button")
-    .addEventListener(
-      "click",
-      () => {
-        dialog.close();
-      }
-    );
+  cancelButton.addEventListener(
+    "click",
+    () => {
+      dialog.close();
+    }
+  );
 
   deleteButton.addEventListener(
     "click",
@@ -185,7 +256,7 @@ function attachEventListeners() {
   );
 
   /*
-    Close dialog when clicking backdrop.
+    Close dialog when clicking the backdrop.
   */
 
   dialog.addEventListener(
@@ -196,65 +267,61 @@ function attachEventListeners() {
       }
     }
   );
+
+  /*
+    Improve end-time defaults when start time changes.
+  */
+
+  startTimeInput.addEventListener(
+    "change",
+    updateSuggestedEndTime
+  );
 }
 
-/*
-  Responsive schedule sizing
+/* =========================================================
+   Responsive schedule sizing
 
-  Teams embeds the page inside an iframe.
-  ResizeObserver watches the actual schedule-card width,
-  including when the Teams window or sidebar changes size.
-*/
+   Teams embeds this page in an iframe. This function measures
+   the actual schedule-card width rather than relying only on
+   window.innerWidth or CSS media queries.
+
+   Narrow Teams window:
+   - timeline keeps a readable pixel width
+   - schedule-card scrolls horizontally
+
+   Wide Teams window:
+   - timeline expands to fill the available width
+   ========================================================= */
 
 function initializeResponsiveSchedule() {
   const root =
     document.documentElement;
 
   function updateScheduleDimensions() {
-    const availableWidth =
+    const cardWidth =
       Math.max(
         0,
         scheduleCard.clientWidth
       );
 
-    /*
-      Select equipment-column width based on
-      the actual iframe/container width.
-    */
-
     let resourceColumnWidth = 145;
 
-    if (availableWidth < 850) {
-      resourceColumnWidth = 130;
+    if (cardWidth < 800) {
+      resourceColumnWidth = 125;
     }
 
-    if (availableWidth < 650) {
-      resourceColumnWidth = 115;
-    }
-
-    /*
-      Minimum readable width per hour.
-
-      Narrow Teams:
-      schedule scrolls horizontally.
-
-      Wide Teams:
-      timeline expands and fills the width.
-    */
-
-    let minimumHourWidth = 72;
-
-    if (availableWidth < 800) {
-      minimumHourWidth = 68;
+    if (cardWidth < 600) {
+      resourceColumnWidth = 110;
     }
 
     const minimumTimelineWidth =
-      minimumHourWidth * HOURS_VISIBLE;
+      HOURS_VISIBLE *
+      MINIMUM_HOUR_WIDTH;
 
     const availableTimelineWidth =
       Math.max(
         0,
-        availableWidth -
+        cardWidth -
         resourceColumnWidth
       );
 
@@ -274,19 +341,80 @@ function initializeResponsiveSchedule() {
     );
 
     root.style.setProperty(
-      "--timeline-min-width",
+      "--timeline-width",
       `${timelineWidth}px`
     );
 
     root.style.setProperty(
-      "--schedule-min-width",
+      "--schedule-width",
       `${scheduleWidth}px`
     );
+
+    /*
+      Inline dimensions provide an additional safeguard for
+      the embedded Teams browser.
+    */
+
+    scheduleElement.style.width =
+      `${scheduleWidth}px`;
+
+    scheduleElement.style.minWidth =
+      `${scheduleWidth}px`;
+
+    const scheduleHeaders =
+      scheduleElement.querySelectorAll(
+        ".schedule-header"
+      );
+
+    const resourceRows =
+      scheduleElement.querySelectorAll(
+        ".resource-row"
+      );
+
+    const timelineHeaders =
+      scheduleElement.querySelectorAll(
+        ".timeline-header"
+      );
+
+    const timelineRows =
+      scheduleElement.querySelectorAll(
+        ".timeline-row"
+      );
+
+    scheduleHeaders.forEach(element => {
+      element.style.width =
+        `${scheduleWidth}px`;
+
+      element.style.minWidth =
+        `${scheduleWidth}px`;
+    });
+
+    resourceRows.forEach(element => {
+      element.style.width =
+        `${scheduleWidth}px`;
+
+      element.style.minWidth =
+        `${scheduleWidth}px`;
+    });
+
+    timelineHeaders.forEach(element => {
+      element.style.width =
+        `${timelineWidth}px`;
+
+      element.style.minWidth =
+        `${timelineWidth}px`;
+    });
+
+    timelineRows.forEach(element => {
+      element.style.width =
+        `${timelineWidth}px`;
+
+      element.style.minWidth =
+        `${timelineWidth}px`;
+    });
   }
 
-  /*
-    Observe actual element width.
-  */
+  updateScheduleDimensions();
 
   if ("ResizeObserver" in window) {
     scheduleResizeObserver =
@@ -299,44 +427,183 @@ function initializeResponsiveSchedule() {
     );
   }
 
-  /*
-    Initial calculation.
-  */
-
-  updateScheduleDimensions();
-
-  /*
-    Browser fallback.
-  */
-
   window.addEventListener(
     "resize",
     updateScheduleDimensions
   );
+
+  /*
+    Teams may finish sizing the iframe after initial load.
+  */
+
+  window.setTimeout(
+    updateScheduleDimensions,
+    100
+  );
+
+  window.setTimeout(
+    updateScheduleDimensions,
+    300
+  );
+
+  window.setTimeout(
+    updateScheduleDimensions,
+    750
+  );
+
+  window.setTimeout(
+    updateScheduleDimensions,
+    1500
+  );
+
+  /*
+    Make the function available after every re-render.
+  */
+
+  initializeResponsiveSchedule.update =
+    updateScheduleDimensions;
 }
 
-/*
-  Date navigation
-*/
+/* =========================================================
+   Schedule scrolling
+
+   Supported methods:
+   - visible horizontal scrollbar
+   - Earlier / Later buttons
+   - mouse wheel
+   - trackpad horizontal movement
+   - keyboard left/right arrows
+   ========================================================= */
+
+function initializeScheduleScrolling() {
+  const scrollAmount = 360;
+
+  if (scrollLeftButton) {
+    scrollLeftButton.addEventListener(
+      "click",
+      () => {
+        scheduleCard.scrollBy({
+          left: -scrollAmount,
+          behavior: "smooth",
+        });
+      }
+    );
+  }
+
+  if (scrollRightButton) {
+    scrollRightButton.addEventListener(
+      "click",
+      () => {
+        scheduleCard.scrollBy({
+          left: scrollAmount,
+          behavior: "smooth",
+        });
+      }
+    );
+  }
+
+  scheduleCard.addEventListener(
+    "wheel",
+    event => {
+      const canScrollHorizontally =
+        scheduleCard.scrollWidth >
+        scheduleCard.clientWidth;
+
+      if (!canScrollHorizontally) {
+        return;
+      }
+
+      const movement =
+        Math.abs(event.deltaX) >
+        Math.abs(event.deltaY)
+          ? event.deltaX
+          : event.deltaY;
+
+      if (movement === 0) {
+        return;
+      }
+
+      event.preventDefault();
+
+      scheduleCard.scrollLeft += movement;
+    },
+    {
+      passive: false,
+    }
+  );
+
+  scheduleCard.addEventListener(
+    "keydown",
+    event => {
+      if (event.key === "ArrowLeft") {
+        event.preventDefault();
+
+        scheduleCard.scrollBy({
+          left: -scrollAmount,
+          behavior: "smooth",
+        });
+      }
+
+      if (event.key === "ArrowRight") {
+        event.preventDefault();
+
+        scheduleCard.scrollBy({
+          left: scrollAmount,
+          behavior: "smooth",
+        });
+      }
+
+      if (event.key === "Home") {
+        event.preventDefault();
+
+        scheduleCard.scrollTo({
+          left: 0,
+          behavior: "smooth",
+        });
+      }
+
+      if (event.key === "End") {
+        event.preventDefault();
+
+        scheduleCard.scrollTo({
+          left:
+            scheduleCard.scrollWidth,
+          behavior: "smooth",
+        });
+      }
+    }
+  );
+}
+
+/* =========================================================
+   Date navigation
+   ========================================================= */
 
 function changeDate(numberOfDays) {
   const date =
     selectedLocalDate();
 
   date.setDate(
-    date.getDate() + numberOfDays
+    date.getDate() +
+    numberOfDays
   );
 
   datePicker.value =
     formatDateInput(date);
 }
 
-/*
-  Load reservations
-*/
+function resetScheduleScroll() {
+  scheduleCard.scrollLeft = 0;
+}
+
+/* =========================================================
+   Load reservations from Supabase
+   ========================================================= */
 
 async function loadReservations() {
-  setStatus("Loading schedule...");
+  setStatus(
+    "Loading schedule..."
+  );
 
   const dayStart =
     selectedLocalDate();
@@ -348,50 +615,58 @@ async function loadReservations() {
     dayEnd.getDate() + 1
   );
 
-  const { data, error } =
-    await database
-      .from("reservations")
-      .select("*")
-      .lt(
-        "start_time",
-        dayEnd.toISOString()
-      )
-      .gt(
-        "end_time",
-        dayStart.toISOString()
-      )
-      .order(
-        "start_time",
-        {
-          ascending: true,
-        }
-      );
+  try {
+    const { data, error } =
+      await database
+        .from("reservations")
+        .select("*")
+        .lt(
+          "start_time",
+          dayEnd.toISOString()
+        )
+        .gt(
+          "end_time",
+          dayStart.toISOString()
+        )
+        .order(
+          "start_time",
+          {
+            ascending: true,
+          }
+        );
 
-  if (error) {
-    console.error(error);
+    if (error) {
+      throw error;
+    }
+
+    currentReservations =
+      data ?? [];
+
+    renderSchedule();
+
+    setStatus("");
+  } catch (error) {
+    console.error(
+      "Could not load reservations:",
+      error
+    );
 
     currentReservations = [];
 
     renderSchedule();
 
     setStatus(
-      `Could not load reservations: ${error.message}`
+      `Could not load reservations: ${
+        error?.message ??
+        "Unknown error"
+      }`
     );
-
-    return;
   }
-
-  currentReservations =
-    data ?? [];
-
-  renderSchedule();
-
-  setStatus("");
 }
 
-/*
-  Render full schedule
-*/
+/* =========================================================
+   Render schedule
+   ========================================================= */
 
 function renderSchedule() {
   scheduleElement.innerHTML = "";
@@ -401,18 +676,34 @@ function renderSchedule() {
   for (const resource of resources) {
     createResourceRow(resource);
   }
+
+  /*
+    Reapply the actual pixel width after the DOM is rebuilt.
+  */
+
+  if (
+    typeof initializeResponsiveSchedule.update ===
+    "function"
+  ) {
+    requestAnimationFrame(() => {
+      initializeResponsiveSchedule.update();
+    });
+  }
 }
 
-/*
-  Create timeline header
+/* =========================================================
+   Create timeline header
 
-  Uses hour < DISPLAY_END_HOUR.
+   Important:
+   hour < DISPLAY_END_HOUR
 
-  Therefore it displays:
-  8 AM through 5 PM.
+   This displays:
+   8 AM, 9 AM, 10 AM, ..., 5 PM
 
-  The right edge still represents 6 PM.
-*/
+   It does not display 6 PM.
+
+   The right edge of the schedule still represents 6 PM.
+   ========================================================= */
 
 function createScheduleHeader() {
   const header =
@@ -445,7 +736,9 @@ function createScheduleHeader() {
       "hour-label";
 
     const minutesFromStart =
-      (hour - DISPLAY_START_HOUR) * 60;
+      (hour -
+        DISPLAY_START_HOUR) *
+      60;
 
     label.style.left =
       `${minutesToPercent(
@@ -455,7 +748,9 @@ function createScheduleHeader() {
     label.textContent =
       formatHourLabel(hour);
 
-    timelineHeader.appendChild(label);
+    timelineHeader.appendChild(
+      label
+    );
   }
 
   header.append(
@@ -463,12 +758,14 @@ function createScheduleHeader() {
     timelineHeader
   );
 
-  scheduleElement.appendChild(header);
+  scheduleElement.appendChild(
+    header
+  );
 }
 
-/*
-  Create equipment row
-*/
+/* =========================================================
+   Create one equipment row
+   ========================================================= */
 
 function createResourceRow(resource) {
   const row =
@@ -484,6 +781,9 @@ function createResourceRow(resource) {
     "resource-name";
 
   name.textContent =
+    resource.name;
+
+  name.title =
     resource.name;
 
   const timeline =
@@ -508,7 +808,9 @@ function createResourceRow(resource) {
   const reservationsForResource =
     currentReservations.filter(
       reservation =>
-        Number(reservation.resource_id) ===
+        Number(
+          reservation.resource_id
+        ) ===
         Number(resource.id)
     );
 
@@ -534,9 +836,9 @@ function createResourceRow(resource) {
   scheduleElement.appendChild(row);
 }
 
-/*
-  Create reservation block
-*/
+/* =========================================================
+   Create a reservation block
+   ========================================================= */
 
 function createReservationBlock(
   reservation
@@ -574,9 +876,21 @@ function createReservationBlock(
       reservation.end_time
     );
 
+  if (
+    Number.isNaN(start.getTime()) ||
+    Number.isNaN(end.getTime())
+  ) {
+    console.warn(
+      "Invalid reservation time:",
+      reservation
+    );
+
+    return null;
+  }
+
   /*
-    Ignore reservations completely outside
-    the visible range.
+    Do not display reservations completely outside
+    the visible 8 AM–6 PM range.
   */
 
   if (
@@ -587,10 +901,12 @@ function createReservationBlock(
   }
 
   const startMinutes =
-    (start - displayStart) / 60000;
+    (start - displayStart) /
+    60000;
 
   const endMinutes =
-    (end - displayStart) / 60000;
+    (end - displayStart) /
+    60000;
 
   const clippedStart =
     Math.max(
@@ -605,7 +921,8 @@ function createReservationBlock(
     );
 
   const visibleDuration =
-    clippedEnd - clippedStart;
+    clippedEnd -
+    clippedStart;
 
   if (visibleDuration <= 0) {
     return null;
@@ -614,11 +931,8 @@ function createReservationBlock(
   const block =
     document.createElement("button");
 
-  block.type =
-    "button";
-
-  block.className =
-    "reservation";
+  block.type = "button";
+  block.className = "reservation";
 
   block.style.left =
     `${minutesToPercent(
@@ -673,9 +987,9 @@ function createReservationBlock(
   return block;
 }
 
-/*
-  Open create dialog
-*/
+/* =========================================================
+   Open create dialog
+   ========================================================= */
 
 function openCreateDialog(
   resource,
@@ -686,9 +1000,18 @@ function openCreateDialog(
   dialogTitle.textContent =
     "Add Reservation";
 
+  const timeline =
+    clickEvent.currentTarget;
+
   const timelineRect =
-    clickEvent.currentTarget
-      .getBoundingClientRect();
+    timeline.getBoundingClientRect();
+
+  if (timelineRect.width <= 0) {
+    formError.textContent =
+      "Could not determine the selected time.";
+
+    return;
+  }
 
   const clickPosition =
     clickEvent.clientX -
@@ -703,43 +1026,42 @@ function openCreateDialog(
     );
 
   let selectedMinutes =
-    DISPLAY_START_HOUR * 60 +
-    fraction * DISPLAY_MINUTES;
-
-  /*
-    Round to nearest 15 minutes.
-  */
+    DISPLAY_START_HOUR *
+    60 +
+    fraction *
+    DISPLAY_MINUTES;
 
   selectedMinutes =
     Math.round(
-      selectedMinutes / 15
-    ) * 15;
+      selectedMinutes /
+      TIME_INCREMENT_MINUTES
+    ) *
+    TIME_INCREMENT_MINUTES;
 
   const minimumMinutes =
-    DISPLAY_START_HOUR * 60;
+    DISPLAY_START_HOUR *
+    60;
 
   const maximumMinutes =
-    DISPLAY_END_HOUR * 60;
+    DISPLAY_END_HOUR *
+    60;
 
   /*
-    Latest valid start is 5:45 PM.
+    Latest possible start is 5:45 PM.
   */
 
   selectedMinutes =
     clamp(
       selectedMinutes,
       minimumMinutes,
-      maximumMinutes - 15
+      maximumMinutes -
+        TIME_INCREMENT_MINUTES
     );
-
-  /*
-    Default duration is one hour,
-    but never later than 6 PM.
-  */
 
   const endMinutes =
     Math.min(
-      selectedMinutes + 60,
+      selectedMinutes +
+        DEFAULT_RESERVATION_MINUTES,
       maximumMinutes
     );
 
@@ -768,9 +1090,9 @@ function openCreateDialog(
   personNameInput.focus();
 }
 
-/*
-  Open edit dialog
-*/
+/* =========================================================
+   Open edit dialog
+   ========================================================= */
 
 function openEditDialog(
   reservation
@@ -784,7 +1106,9 @@ function openEditDialog(
     resources.find(
       item =>
         Number(item.id) ===
-        Number(reservation.resource_id)
+        Number(
+          reservation.resource_id
+        )
     );
 
   reservationIdInput.value =
@@ -800,10 +1124,12 @@ function openEditDialog(
     "Unknown equipment";
 
   personNameInput.value =
-    reservation.person_name;
+    reservation.person_name ??
+    "";
 
   titleInput.value =
-    reservation.title;
+    reservation.title ??
+    "";
 
   startTimeInput.value =
     dateToTimeInput(
@@ -828,32 +1154,76 @@ function openEditDialog(
   personNameInput.focus();
 }
 
-/*
-  Clear dialog
-*/
+/* =========================================================
+   Clear dialog
+   ========================================================= */
 
 function clearDialog() {
   form.reset();
 
-  reservationIdInput.value =
-    "";
+  reservationIdInput.value = "";
+  resourceIdInput.value = "";
 
-  resourceIdInput.value =
-    "";
+  resourceNameInput.value = "";
 
-  formError.textContent =
-    "";
+  formError.textContent = "";
 }
 
-/*
-  Save reservation
-*/
+/* =========================================================
+   Suggest end time after start-time changes
+   ========================================================= */
+
+function updateSuggestedEndTime() {
+  if (!startTimeInput.value) {
+    return;
+  }
+
+  const startMinutes =
+    timeInputToMinutes(
+      startTimeInput.value
+    );
+
+  if (
+    startMinutes === null
+  ) {
+    return;
+  }
+
+  const maximumMinutes =
+    DISPLAY_END_HOUR *
+    60;
+
+  const suggestedEnd =
+    Math.min(
+      startMinutes +
+        DEFAULT_RESERVATION_MINUTES,
+      maximumMinutes
+    );
+
+  const existingEnd =
+    timeInputToMinutes(
+      endTimeInput.value
+    );
+
+  if (
+    existingEnd === null ||
+    existingEnd <= startMinutes
+  ) {
+    endTimeInput.value =
+      minutesToTimeInput(
+        suggestedEnd
+      );
+  }
+}
+
+/* =========================================================
+   Save reservation
+   ========================================================= */
 
 async function saveReservation(event) {
   event.preventDefault();
 
-  formError.textContent =
-    "";
+  formError.textContent = "";
 
   const reservationId =
     reservationIdInput.value;
@@ -869,9 +1239,21 @@ async function saveReservation(event) {
   const reservationTitle =
     titleInput.value.trim();
 
+  if (
+    !Number.isInteger(resourceId) ||
+    resourceId < 1
+  ) {
+    formError.textContent =
+      "Invalid equipment selection.";
+
+    return;
+  }
+
   if (!personName) {
     formError.textContent =
       "Please enter your name.";
+
+    personNameInput.focus();
 
     return;
   }
@@ -879,6 +1261,8 @@ async function saveReservation(event) {
   if (!reservationTitle) {
     formError.textContent =
       "Please enter a description.";
+
+    titleInput.focus();
 
     return;
   }
@@ -902,6 +1286,16 @@ async function saveReservation(event) {
     combineSelectedDateAndTime(
       endTimeInput.value
     );
+
+  if (
+    Number.isNaN(start.getTime()) ||
+    Number.isNaN(end.getTime())
+  ) {
+    formError.textContent =
+      "Invalid reservation time.";
+
+    return;
+  }
 
   if (!(start < end)) {
     formError.textContent =
@@ -931,7 +1325,8 @@ async function saveReservation(event) {
   );
 
   /*
-    End exactly at 6 PM is valid.
+    Ending exactly at 6:00 PM is valid because only
+    end > displayEnd is rejected.
   */
 
   if (
@@ -949,10 +1344,6 @@ async function saveReservation(event) {
 
     return;
   }
-
-  /*
-    Check conflicts.
-  */
 
   const hasConflict =
     currentReservations.some(
@@ -1008,43 +1399,51 @@ async function saveReservation(event) {
     end_time: end.toISOString(),
   };
 
-  let result;
+  setDialogBusy(true);
 
-  if (reservationId) {
-    result =
-      await database
-        .from("reservations")
-        .update(record)
-        .eq(
-          "id",
-          reservationId
-        );
-  } else {
-    result =
-      await database
-        .from("reservations")
-        .insert(record);
-  }
+  try {
+    let result;
 
-  if (result.error) {
+    if (reservationId) {
+      result =
+        await database
+          .from("reservations")
+          .update(record)
+          .eq(
+            "id",
+            reservationId
+          );
+    } else {
+      result =
+        await database
+          .from("reservations")
+          .insert(record);
+    }
+
+    if (result.error) {
+      throw result.error;
+    }
+
+    dialog.close();
+
+    await loadReservations();
+  } catch (error) {
     console.error(
-      result.error
+      "Could not save reservation:",
+      error
     );
 
     formError.textContent =
-      result.error.message;
-
-    return;
+      error?.message ??
+      "Could not save the reservation.";
+  } finally {
+    setDialogBusy(false);
   }
-
-  dialog.close();
-
-  await loadReservations();
 }
 
-/*
-  Delete reservation
-*/
+/* =========================================================
+   Delete reservation
+   ========================================================= */
 
 async function deleteReservation() {
   const reservationId =
@@ -1063,34 +1462,72 @@ async function deleteReservation() {
     return;
   }
 
-  const { error } =
-    await database
-      .from("reservations")
-      .delete()
-      .eq(
-        "id",
-        reservationId
-      );
+  setDialogBusy(true);
 
-  if (error) {
-    console.error(error);
+  try {
+    const { error } =
+      await database
+        .from("reservations")
+        .delete()
+        .eq(
+          "id",
+          reservationId
+        );
+
+    if (error) {
+      throw error;
+    }
+
+    dialog.close();
+
+    await loadReservations();
+  } catch (error) {
+    console.error(
+      "Could not delete reservation:",
+      error
+    );
 
     formError.textContent =
-      error.message;
-
-    return;
+      error?.message ??
+      "Could not delete the reservation.";
+  } finally {
+    setDialogBusy(false);
   }
-
-  dialog.close();
-
-  await loadReservations();
 }
 
-/*
-  Selected date at local midnight
-*/
+/* =========================================================
+   Disable dialog controls during database operations
+   ========================================================= */
+
+function setDialogBusy(isBusy) {
+  const buttons =
+    form.querySelectorAll(
+      "button"
+    );
+
+  const editableInputs =
+    form.querySelectorAll(
+      "input:not([type='hidden']):not(:disabled)"
+    );
+
+  buttons.forEach(button => {
+    button.disabled = isBusy;
+  });
+
+  editableInputs.forEach(input => {
+    input.disabled = isBusy;
+  });
+}
+
+/* =========================================================
+   Date and time utilities
+   ========================================================= */
 
 function selectedLocalDate() {
+  if (!datePicker.value) {
+    return new Date();
+  }
+
   const [
     year,
     month,
@@ -1110,10 +1547,6 @@ function selectedLocalDate() {
     0
   );
 }
-
-/*
-  Combine date and time
-*/
 
 function combineSelectedDateAndTime(
   timeValue
@@ -1139,20 +1572,12 @@ function combineSelectedDateAndTime(
   return date;
 }
 
-/*
-  Minutes to timeline percentage
-*/
-
 function minutesToPercent(minutes) {
   return (
     minutes /
     DISPLAY_MINUTES
   ) * 100;
 }
-
-/*
-  Minutes to HH:MM
-*/
 
 function minutesToTimeInput(
   totalMinutes
@@ -1174,9 +1599,30 @@ function minutesToTimeInput(
   );
 }
 
-/*
-  Date to HH:MM
-*/
+function timeInputToMinutes(
+  timeValue
+) {
+  if (!timeValue) {
+    return null;
+  }
+
+  const parts =
+    timeValue
+      .split(":")
+      .map(Number);
+
+  if (
+    parts.length < 2 ||
+    parts.some(Number.isNaN)
+  ) {
+    return null;
+  }
+
+  return (
+    parts[0] * 60 +
+    parts[1]
+  );
+}
 
 function dateToTimeInput(date) {
   return (
@@ -1189,10 +1635,6 @@ function dateToTimeInput(date) {
     ).padStart(2, "0")
   );
 }
-
-/*
-  Date to YYYY-MM-DD
-*/
 
 function formatDateInput(date) {
   const year =
@@ -1213,10 +1655,6 @@ function formatDateInput(date) {
   );
 }
 
-/*
-  Format hour label
-*/
-
 function formatHourLabel(hour) {
   const suffix =
     hour >= 12
@@ -1231,10 +1669,6 @@ function formatHourLabel(hour) {
   );
 }
 
-/*
-  Format reservation time
-*/
-
 function formatTime(date) {
   return date.toLocaleTimeString(
     [],
@@ -1244,10 +1678,6 @@ function formatTime(date) {
     }
   );
 }
-
-/*
-  Clamp number
-*/
 
 function clamp(
   value,
@@ -1263,9 +1693,9 @@ function clamp(
   );
 }
 
-/*
-  Status message
-*/
+/* =========================================================
+   Status message
+   ========================================================= */
 
 function setStatus(message) {
   statusMessage.textContent =
