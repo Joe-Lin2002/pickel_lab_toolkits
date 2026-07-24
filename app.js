@@ -1,16 +1,32 @@
 "use strict";
 
-const SUPABASE_URL = "https://klpsqhugljdujfuislzb.supabase.co";
-const SUPABASE_KEY = "sb_publishable_vx6z9_wSGdRYsG-btENzmQ_jB0pKbdO";
+/* =========================================================
+   API configuration
 
-const database =
-  supabase.createClient(
-    SUPABASE_URL,
-    SUPABASE_KEY
-  );
+   The browser no longer connects directly to Supabase.
+   All database operations go through the Vercel API.
+   ========================================================= */
+
+const API_URL = "/api/reservations";
+
+const ACCESS_CODE_STORAGE_KEY =
+  "pickel_lab_access_code";
+
+/*
+  The access code is stored only for the current browser or
+  Teams-tab session. Closing the session usually clears it.
+*/
+
+let labAccessCode =
+  sessionStorage.getItem(
+    ACCESS_CODE_STORAGE_KEY
+  ) ?? "";
 
 /* =========================================================
    Equipment configuration
+
+   Change only the displayed names if needed.
+   Keep IDs as 1, 2, and 3 unless the API is also updated.
    ========================================================= */
 
 const resources = [
@@ -31,14 +47,14 @@ const resources = [
 /* =========================================================
    Schedule configuration
 
-   Visible and reservable time:
+   Reservable range:
    7:00 AM–11:00 PM
 
    Header labels:
    7 AM–10 PM
 
-   The right edge represents 11 PM.
-   Reservations may end exactly at 11:00 PM.
+   The right boundary represents 11:00 PM.
+   A reservation may end exactly at 11:00 PM.
    ========================================================= */
 
 const DISPLAY_START_HOUR = 7;
@@ -204,16 +220,21 @@ async function initialize() {
   initializeScheduleScrolling();
 
   /*
-    Show an empty grid immediately.
+    Draw the empty schedule immediately.
   */
 
   renderSchedule();
+
+  /*
+    Loading reservations will request the lab access code
+    when no code is stored for the current session.
+  */
 
   await loadReservations();
 }
 
 /* =========================================================
-   Validate HTML
+   Validate required HTML
    ========================================================= */
 
 function validateRequiredElements() {
@@ -336,8 +357,8 @@ function attachEventListeners() {
   );
 
   /*
-    Close the dialog when clicking
-    directly on its backdrop area.
+    Close the dialog when the user clicks directly
+    on the dialog backdrop.
   */
 
   dialog.addEventListener(
@@ -353,13 +374,162 @@ function attachEventListeners() {
 }
 
 /* =========================================================
+   Access-code handling
+   ========================================================= */
+
+function requestLabAccessCode() {
+  const enteredCode =
+    window.prompt(
+      "Enter the Pickel Lab access code:"
+    );
+
+  if (
+    enteredCode === null
+  ) {
+    return false;
+  }
+
+  const trimmedCode =
+    enteredCode.trim();
+
+  if (!trimmedCode) {
+    window.alert(
+      "An access code is required."
+    );
+
+    return false;
+  }
+
+  labAccessCode =
+    trimmedCode;
+
+  sessionStorage.setItem(
+    ACCESS_CODE_STORAGE_KEY,
+    labAccessCode
+  );
+
+  return true;
+}
+
+function clearStoredAccessCode() {
+  labAccessCode = "";
+
+  sessionStorage.removeItem(
+    ACCESS_CODE_STORAGE_KEY
+  );
+}
+
+/* =========================================================
+   Unified API request
+
+   Every request sends:
+   X-Lab-Access-Code: <shared code>
+
+   If the server responds with 401:
+   - clear the stored code
+   - ask the user for the code again
+   - retry once
+   ========================================================= */
+
+async function apiRequest(
+  url,
+  options = {},
+  allowCodeRetry = true
+) {
+  if (
+    !labAccessCode &&
+    !requestLabAccessCode()
+  ) {
+    throw new Error(
+      "Access code is required."
+    );
+  }
+
+  const requestOptions = {
+    ...options,
+
+    headers: {
+      "X-Lab-Access-Code":
+        labAccessCode,
+
+      ...(options.body
+        ? {
+            "Content-Type":
+              "application/json",
+          }
+        : {}),
+
+      ...(options.headers ?? {}),
+    },
+  };
+
+  let response;
+
+  try {
+    response =
+      await fetch(
+        url,
+        requestOptions
+      );
+  } catch (error) {
+    throw new Error(
+      "Could not connect to the reservation server."
+    );
+  }
+
+  let payload = {};
+
+  try {
+    payload =
+      await response.json();
+  } catch {
+    payload = {};
+  }
+
+  if (
+    response.status === 401 &&
+    allowCodeRetry
+  ) {
+    clearStoredAccessCode();
+
+    const codeEntered =
+      requestLabAccessCode();
+
+    if (!codeEntered) {
+      throw new Error(
+        "Access code is required."
+      );
+    }
+
+    return apiRequest(
+      url,
+      options,
+      false
+    );
+  }
+
+  if (!response.ok) {
+    throw new Error(
+      payload.error ??
+      `Request failed with status ${response.status}.`
+    );
+  }
+
+  return payload;
+}
+
+/* =========================================================
    Teams iframe responsive width
 
    The timeline remains at least:
    16 hours × 82 px = 1312 px
 
-   If Teams is narrower, schedule-card scrolls.
-   If Teams is wider, the timeline expands.
+   When Teams is narrow:
+   - the inner schedule remains wide
+   - schedule-card scrolls horizontally
+
+   When Teams is wide:
+   - the schedule expands to fill the available space
    ========================================================= */
 
 function initializeResponsiveSchedule() {
@@ -428,8 +598,8 @@ function initializeResponsiveSchedule() {
       );
 
       /*
-        Inline widths provide an additional
-        safeguard in the Teams embedded browser.
+        Explicit inline widths improve reliability in the
+        embedded Teams browser.
       */
 
       scheduleElement.style.width =
@@ -490,8 +660,7 @@ function initializeResponsiveSchedule() {
   );
 
   /*
-    Teams may change the iframe size
-    shortly after the tab first opens.
+    Teams may update the tab's iframe size after loading.
   */
 
   window.setTimeout(
@@ -516,7 +685,7 @@ function initializeResponsiveSchedule() {
 }
 
 /* =========================================================
-   Horizontal scrolling
+   Horizontal schedule scrolling
    ========================================================= */
 
 function initializeScheduleScrolling() {
@@ -546,9 +715,8 @@ function initializeScheduleScrolling() {
   );
 
   /*
-    Translate vertical mouse-wheel movement
-    into horizontal movement when the schedule
-    has horizontal overflow.
+    Convert mouse-wheel movement to horizontal scrolling
+    while the pointer is over the schedule.
   */
 
   scheduleCard.addEventListener(
@@ -583,11 +751,6 @@ function initializeScheduleScrolling() {
       passive: false,
     }
   );
-
-  /*
-    Keyboard scrolling when the schedule
-    has focus.
-  */
 
   scheduleCard.addEventListener(
     "keydown",
@@ -686,7 +849,7 @@ function changeDate(
 }
 
 /* =========================================================
-   Load reservations
+   Load reservations from Vercel API
    ========================================================= */
 
 async function loadReservations() {
@@ -704,35 +867,33 @@ async function loadReservations() {
     dayEnd.getDate() + 1
   );
 
-  try {
-    const {
-      data,
-      error,
-    } =
-      await database
-        .from("reservations")
-        .select("*")
-        .lt(
-          "start_time",
-          dayEnd.toISOString()
-        )
-        .gt(
-          "end_time",
-          dayStart.toISOString()
-        )
-        .order(
-          "start_time",
-          {
-            ascending: true,
-          }
-        );
+  const query =
+    new URLSearchParams({
+      date:
+        datePicker.value,
 
-    if (error) {
-      throw error;
-    }
+      start:
+        dayStart.toISOString(),
+
+      end:
+        dayEnd.toISOString(),
+    });
+
+  try {
+    const payload =
+      await apiRequest(
+        `${API_URL}?${query.toString()}`,
+        {
+          method: "GET",
+        }
+      );
 
     currentReservations =
-      data ?? [];
+      Array.isArray(
+        payload.reservations
+      )
+        ? payload.reservations
+        : [];
 
     renderSchedule();
 
@@ -748,11 +909,8 @@ async function loadReservations() {
     renderSchedule();
 
     setStatus(
-      "Could not load reservations: " +
-      (
-        error?.message ??
-        "Unknown error"
-      )
+      error?.message ??
+      "Could not load reservations."
     );
   }
 }
@@ -776,8 +934,7 @@ function renderSchedule() {
   }
 
   /*
-    Reapply pixel widths after rebuilding
-    the schedule DOM.
+    Reapply explicit widths after rebuilding the DOM.
   */
 
   requestAnimationFrame(
@@ -788,15 +945,16 @@ function renderSchedule() {
 }
 
 /* =========================================================
-   Header
+   Create schedule header
 
-   Displays 7 AM through 10 PM.
-
-   Because the condition is:
+   The condition uses:
    hour < DISPLAY_END_HOUR
 
-   11 PM is not printed as a label,
-   but the right edge represents 11 PM.
+   Therefore the header displays:
+   7 AM through 10 PM
+
+   It does not display 11 PM.
+   The right boundary still represents 11 PM.
    ========================================================= */
 
 function createScheduleHeader() {
@@ -869,7 +1027,7 @@ function createScheduleHeader() {
 }
 
 /* =========================================================
-   Equipment rows
+   Create one equipment row
    ========================================================= */
 
 function createResourceRow(
@@ -954,7 +1112,7 @@ function createResourceRow(
 }
 
 /* =========================================================
-   Reservation block
+   Create reservation block
    ========================================================= */
 
 function createReservationBlock(
@@ -1085,7 +1243,8 @@ function createReservationBlock(
     "reservation-title";
 
   title.textContent =
-    reservation.title;
+    reservation.title ??
+    "";
 
   const details =
     document.createElement(
@@ -1096,7 +1255,7 @@ function createReservationBlock(
     "reservation-details";
 
   details.textContent =
-    `${reservation.person_name} · ` +
+    `${reservation.person_name ?? ""} · ` +
     `${formatTime(start)}–` +
     `${formatTime(end)}`;
 
@@ -1120,7 +1279,7 @@ function createReservationBlock(
 }
 
 /* =========================================================
-   Create reservation dialog
+   Open create dialog
    ========================================================= */
 
 function openCreateDialog(
@@ -1178,7 +1337,7 @@ function openCreateDialog(
     60;
 
   /*
-    Latest start time is 10:45 PM.
+    Latest valid start is 10:45 PM.
   */
 
   selectedMinutes =
@@ -1222,7 +1381,7 @@ function openCreateDialog(
 }
 
 /* =========================================================
-   Edit reservation dialog
+   Open edit dialog
    ========================================================= */
 
 function openEditDialog(
@@ -1352,7 +1511,7 @@ function updateSuggestedEndTime() {
 }
 
 /* =========================================================
-   Save reservation
+   Save reservation through Vercel API
    ========================================================= */
 
 async function saveReservation(
@@ -1384,6 +1543,11 @@ async function saveReservation(
   if (
     !Number.isInteger(
       resourceId
+    ) ||
+    !resources.some(
+      resource =>
+        resource.id ===
+        resourceId
     )
   ) {
     formError.textContent =
@@ -1402,12 +1566,42 @@ async function saveReservation(
   }
 
   if (
+    personName.length > 50
+  ) {
+    formError.textContent =
+      "Name cannot exceed 50 characters.";
+
+    return;
+  }
+
+  if (
     !reservationTitle
   ) {
     formError.textContent =
       "Please enter a description.";
 
     titleInput.focus();
+
+    return;
+  }
+
+  if (
+    reservationTitle.length > 100
+  ) {
+    formError.textContent =
+      "Description cannot exceed 100 characters.";
+
+    return;
+  }
+
+  if (
+    containsMarkup(personName) ||
+    containsMarkup(
+      reservationTitle
+    )
+  ) {
+    formError.textContent =
+      "The name and description cannot contain < or > characters.";
 
     return;
   }
@@ -1431,6 +1625,20 @@ async function saveReservation(
     combineSelectedDateAndTime(
       endTimeInput.value
     );
+
+  if (
+    Number.isNaN(
+      start.getTime()
+    ) ||
+    Number.isNaN(
+      end.getTime()
+    )
+  ) {
+    formError.textContent =
+      "Invalid reservation time.";
+
+    return;
+  }
 
   if (
     !(start < end)
@@ -1462,7 +1670,7 @@ async function saveReservation(
   );
 
   /*
-    Ending exactly at 11:00 PM is allowed.
+    Ending exactly at 11 PM is valid.
   */
 
   if (
@@ -1480,6 +1688,11 @@ async function saveReservation(
 
     return;
   }
+
+  /*
+    Frontend conflict check for immediate feedback.
+    The Vercel API must also repeat this check.
+  */
 
   const hasConflict =
     currentReservations.some(
@@ -1547,32 +1760,35 @@ async function saveReservation(
   setDialogBusy(true);
 
   try {
-    let result;
-
     if (reservationId) {
-      result =
-        await database
-          .from(
-            "reservations"
-          )
-          .update(record)
-          .eq(
-            "id",
-            reservationId
-          );
-    } else {
-      result =
-        await database
-          .from(
-            "reservations"
-          )
-          .insert(record);
-    }
+      await apiRequest(
+        API_URL,
+        {
+          method: "PUT",
 
-    if (
-      result.error
-    ) {
-      throw result.error;
+          body:
+            JSON.stringify({
+              id:
+                Number(
+                  reservationId
+                ),
+
+              ...record,
+            }),
+        }
+      );
+    } else {
+      await apiRequest(
+        API_URL,
+        {
+          method: "POST",
+
+          body:
+            JSON.stringify(
+              record
+            ),
+        }
+      );
     }
 
     dialog.close();
@@ -1593,7 +1809,7 @@ async function saveReservation(
 }
 
 /* =========================================================
-   Delete reservation
+   Delete reservation through Vercel API
    ========================================================= */
 
 async function deleteReservation() {
@@ -1616,22 +1832,14 @@ async function deleteReservation() {
   setDialogBusy(true);
 
   try {
-    const {
-      error,
-    } =
-      await database
-        .from(
-          "reservations"
-        )
-        .delete()
-        .eq(
-          "id",
-          reservationId
-        );
-
-    if (error) {
-      throw error;
-    }
+    await apiRequest(
+      `${API_URL}?id=${encodeURIComponent(
+        reservationId
+      )}`,
+      {
+        method: "DELETE",
+      }
+    );
 
     dialog.close();
 
@@ -1651,7 +1859,7 @@ async function deleteReservation() {
 }
 
 /* =========================================================
-   Disable form during database changes
+   Disable dialog controls during API operations
    ========================================================= */
 
 function setDialogBusy(
@@ -1866,6 +2074,12 @@ function formatTime(
       minute: "2-digit",
     }
   );
+}
+
+function containsMarkup(
+  value
+) {
+  return /[<>]/.test(value);
 }
 
 function clamp(
