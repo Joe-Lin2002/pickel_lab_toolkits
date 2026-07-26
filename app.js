@@ -1783,17 +1783,28 @@ async function deleteReservation() {
   }
 }
 
-function setDialogBusy(
-  isBusy
-) {
-  form
-    .querySelectorAll(
-      "button, input:not([type='hidden']):not(:disabled)"
-    )
-    .forEach(element => {
-      element.disabled =
-        isBusy;
-    });
+function setDialogBusy(isBusy) {
+  const buttons =
+    form.querySelectorAll("button");
+
+  const editableInputs =
+    form.querySelectorAll(
+      "input:not([type='hidden']):not(#resource-name)"
+    );
+
+  buttons.forEach(button => {
+    button.disabled = isBusy;
+  });
+
+  editableInputs.forEach(input => {
+    input.disabled = isBusy;
+  });
+
+  /*
+    Equipment name should always remain disabled
+    because users should not edit it manually.
+  */
+  resourceNameInput.disabled = true;
 }
 
 /* =========================================================
