@@ -1,7 +1,10 @@
-import { createClient } from "@supabase/supabase-js";
+import crypto from "node:crypto";
+import {
+  createClient,
+} from "@supabase/supabase-js";
 
 /* =========================================================
-   Server-only Supabase client
+   Environment configuration
    ========================================================= */
 
 const supabaseUrl =
@@ -10,42 +13,56 @@ const supabaseUrl =
 const supabaseSecretKey =
   process.env.SUPABASE_SECRET_KEY;
 
-const labAccessCode =
-  process.env.LAB_ACCESS_CODE;
+const sessionSecret =
+  process.env.SESSION_SECRET;
 
-if (
-  !supabaseUrl ||
-  !supabaseSecretKey ||
-  !labAccessCode
-) {
-  throw new Error(
-    "Required server environment variables are missing."
-  );
-}
-
-const database = createClient(
-  supabaseUrl,
-  supabaseSecretKey,
-  {
-    auth: {
-      persistSession: false,
-      autoRefreshToken: false,
-    },
-  }
-);
+const COOKIE_NAME =
+  "pickel_lab_session";
 
 /* =========================================================
-   Configuration
+   Supabase server client
+   ========================================================= */
+
+let database = null;
+
+if (
+  supabaseUrl &&
+  supabaseSecretKey
+) {
+  database =
+    createClient(
+      supabaseUrl,
+      supabaseSecretKey,
+      {
+        auth: {
+          persistSession: false,
+          autoRefreshToken: false,
+        },
+      }
+    );
+}
+
+/* =========================================================
+   Reservation configuration
    ========================================================= */
 
 const VALID_RESOURCE_IDS =
   new Set([1, 2, 3]);
 
+const MAX_NAME_LENGTH = 50;
+const MAX_TITLE_LENGTH = 100;
+
 const OPENING_HOUR = 7;
 const CLOSING_HOUR = 23;
 
-const MAX_NAME_LENGTH = 50;
-const MAX_TITLE_LENGTH = 100;
+const MINIMUM_DURATION_MINUTES =
+  15;
+
+const MAXIMUM_DURATION_MINUTES =
+  (
+    CLOSING_HOUR -
+    OPENING_HOUR
+  ) * 60;
 
 /* =========================================================
    Main Vercel Function
@@ -57,33 +74,36 @@ export default async function handler(
 ) {
   setSecurityHeaders(response);
 
-  /*
-    Handle browser preflight requests.
-  */
-
   if (request.method === "OPTIONS") {
     return response
       .status(204)
       .end();
   }
 
-  /*
-    Require the shared lab access code.
-  */
+  if (
+    !database ||
+    !sessionSecret
+  ) {
+    console.error(
+      "Required server environment variables are missing."
+    );
 
-  const suppliedAccessCode =
-    request.headers[
-      "x-lab-access-code"
-    ];
+    return sendError(
+      response,
+      500,
+      "Reservation service is not configured."
+    );
+  }
 
   if (
-    typeof suppliedAccessCode !== "string" ||
-    suppliedAccessCode !== labAccessCode
+    !verifyRequestSession(
+      request
+    )
   ) {
     return sendError(
       response,
       401,
-      "Invalid lab access code."
+      "Authentication required."
     );
   }
 
@@ -140,33 +160,13 @@ export default async function handler(
 }
 
 /* =========================================================
-   GET /api/reservations?date=YYYY-MM-DD
+   GET reservations
    ========================================================= */
 
 async function handleGet(
   request,
   response
 ) {
-  const dateValue =
-    getQueryValue(
-      request.query?.date
-    );
-
-  if (
-    !isValidDateString(dateValue)
-  ) {
-    return sendError(
-      response,
-      400,
-      "A valid date in YYYY-MM-DD format is required."
-    );
-  }
-
-  /*
-    The frontend sends explicit ISO boundaries so that
-    the user's local timezone is preserved.
-  */
-
   const startValue =
     getQueryValue(
       request.query?.start
@@ -184,14 +184,37 @@ async function handleGet(
     new Date(endValue);
 
   if (
-    Number.isNaN(dayStart.getTime()) ||
-    Number.isNaN(dayEnd.getTime()) ||
+    Number.isNaN(
+      dayStart.getTime()
+    ) ||
+    Number.isNaN(
+      dayEnd.getTime()
+    ) ||
     dayStart >= dayEnd
   ) {
     return sendError(
       response,
       400,
       "Invalid date boundaries."
+    );
+  }
+
+  /*
+    Limit a single query to a small date range.
+  */
+
+  const rangeMilliseconds =
+    dayEnd.getTime() -
+    dayStart.getTime();
+
+  if (
+    rangeMilliseconds >
+    48 * 60 * 60 * 1000
+  ) {
+    return sendError(
+      response,
+      400,
+      "The requested date range is too large."
     );
   }
 
@@ -202,7 +225,15 @@ async function handleGet(
     await database
       .from("reservations")
       .select(
-        "id, resource_id, person_name, title, start_time, end_time, created_at"
+        [
+          "id",
+          "resource_id",
+          "person_name",
+          "title",
+          "start_time",
+          "end_time",
+          "created_at",
+        ].join(",")
       )
       .lt(
         "start_time",
@@ -241,7 +272,7 @@ async function handleGet(
 }
 
 /* =========================================================
-   POST /api/reservations
+   POST reservation
    ========================================================= */
 
 async function handlePost(
@@ -271,10 +302,15 @@ async function handlePost(
     );
 
   if (conflict.error) {
+    console.error(
+      "Conflict check error:",
+      conflict.error
+    );
+
     return sendError(
       response,
       500,
-      "Could not verify reservation availability."
+      "Could not verify availability."
     );
   }
 
@@ -294,7 +330,15 @@ async function handlePost(
       .from("reservations")
       .insert(reservation)
       .select(
-        "id, resource_id, person_name, title, start_time, end_time, created_at"
+        [
+          "id",
+          "resource_id",
+          "person_name",
+          "title",
+          "start_time",
+          "end_time",
+          "created_at",
+        ].join(",")
       )
       .single();
 
@@ -303,6 +347,16 @@ async function handlePost(
       "Supabase insert error:",
       error
     );
+
+    if (
+      error.code === "23P01"
+    ) {
+      return sendError(
+        response,
+        409,
+        "This equipment is already reserved during that time."
+      );
+    }
 
     return sendError(
       response,
@@ -319,20 +373,19 @@ async function handlePost(
 }
 
 /* =========================================================
-   PUT /api/reservations
-   Body must include id
+   PUT reservation
    ========================================================= */
 
 async function handlePut(
   request,
   response
 ) {
-  const id =
+  const reservationId =
     parsePositiveInteger(
       request.body?.id
     );
 
-  if (!id) {
+  if (!reservationId) {
     return sendError(
       response,
       400,
@@ -359,14 +412,19 @@ async function handlePut(
   const conflict =
     await findConflict(
       reservation,
-      id
+      reservationId
     );
 
   if (conflict.error) {
+    console.error(
+      "Conflict check error:",
+      conflict.error
+    );
+
     return sendError(
       response,
       500,
-      "Could not verify reservation availability."
+      "Could not verify availability."
     );
   }
 
@@ -387,10 +445,18 @@ async function handlePut(
       .update(reservation)
       .eq(
         "id",
-        id
+        reservationId
       )
       .select(
-        "id, resource_id, person_name, title, start_time, end_time, created_at"
+        [
+          "id",
+          "resource_id",
+          "person_name",
+          "title",
+          "start_time",
+          "end_time",
+          "created_at",
+        ].join(",")
       )
       .maybeSingle();
 
@@ -399,6 +465,16 @@ async function handlePut(
       "Supabase update error:",
       error
     );
+
+    if (
+      error.code === "23P01"
+    ) {
+      return sendError(
+        response,
+        409,
+        "This equipment is already reserved during that time."
+      );
+    }
 
     return sendError(
       response,
@@ -423,21 +499,21 @@ async function handlePut(
 }
 
 /* =========================================================
-   DELETE /api/reservations?id=123
+   DELETE reservation
    ========================================================= */
 
 async function handleDelete(
   request,
   response
 ) {
-  const id =
+  const reservationId =
     parsePositiveInteger(
       getQueryValue(
         request.query?.id
       )
     );
 
-  if (!id) {
+  if (!reservationId) {
     return sendError(
       response,
       400,
@@ -454,7 +530,7 @@ async function handleDelete(
       .delete()
       .eq(
         "id",
-        id
+        reservationId
       )
       .select("id")
       .maybeSingle();
@@ -488,7 +564,7 @@ async function handleDelete(
 }
 
 /* =========================================================
-   Check for overlapping reservations
+   Conflict check
    ========================================================= */
 
 async function findConflict(
@@ -542,7 +618,7 @@ async function findConflict(
 }
 
 /* =========================================================
-   Validate reservation data
+   Reservation validation
    ========================================================= */
 
 function validateReservationBody(
@@ -604,7 +680,9 @@ function validateReservationBody(
   }
 
   if (
-    containsMarkup(personName) ||
+    containsMarkup(
+      personName
+    ) ||
     containsMarkup(title)
   ) {
     return invalid(
@@ -623,8 +701,12 @@ function validateReservationBody(
     );
 
   if (
-    Number.isNaN(start.getTime()) ||
-    Number.isNaN(end.getTime())
+    Number.isNaN(
+      start.getTime()
+    ) ||
+    Number.isNaN(
+      end.getTime()
+    )
   ) {
     return invalid(
       "Invalid reservation time."
@@ -637,20 +719,21 @@ function validateReservationBody(
     );
   }
 
-  /*
-    Reservations must begin and end
-    on the same local-calendar date as
-    represented by the supplied offsets.
-  */
+  const durationMinutes =
+    (
+      end.getTime() -
+      start.getTime()
+    ) /
+    60000;
 
   if (
-    !isWithinOperatingHours(
-      start,
-      end
-    )
+    durationMinutes <
+      MINIMUM_DURATION_MINUTES ||
+    durationMinutes >
+      MAXIMUM_DURATION_MINUTES
   ) {
     return invalid(
-      "Reservations must be between 7:00 AM and 11:00 PM."
+      "Invalid reservation duration."
     );
   }
 
@@ -676,57 +759,171 @@ function validateReservationBody(
 }
 
 /* =========================================================
-   Operating-hours validation
-
-   ISO values received from the browser are UTC values.
-   This lightweight project currently assumes the deployment
-   and lab operate in the same intended timezone.
-
-   The frontend also enforces 7 AM–11 PM.
+   Cookie verification
    ========================================================= */
 
-function isWithinOperatingHours(
-  start,
-  end
+function verifyRequestSession(
+  request
 ) {
-  const sameDate =
-    start.getUTCFullYear() ===
-      end.getUTCFullYear() &&
-    start.getUTCMonth() ===
-      end.getUTCMonth() &&
-    start.getUTCDate() ===
-      end.getUTCDate();
+  const cookies =
+    parseCookies(
+      request.headers.cookie ?? ""
+    );
 
-  /*
-    Because Austin may be UTC-5 or UTC-6,
-    strict UTC-hour validation would be wrong.
-    We therefore validate duration and same-day structure here,
-    while the frontend controls the displayed local hours.
+  return verifySessionToken(
+    cookies[COOKIE_NAME]
+  );
+}
 
-    A later database function can make this timezone-explicit.
-  */
+function verifySessionToken(
+  token
+) {
+  if (
+    typeof token !== "string" ||
+    token.length > 2048
+  ) {
+    return false;
+  }
 
-  const durationMinutes =
-    (
-      end.getTime() -
-      start.getTime()
-    ) /
-    60000;
+  const parts =
+    token.split(".");
 
-  return (
-    sameDate &&
-    durationMinutes >= 15 &&
-    durationMinutes <=
-      (
-        CLOSING_HOUR -
-        OPENING_HOUR
-      ) *
-      60
+  if (parts.length !== 2) {
+    return false;
+  }
+
+  const [
+    encodedPayload,
+    suppliedSignature,
+  ] = parts;
+
+  const expectedSignature =
+    crypto
+      .createHmac(
+        "sha256",
+        sessionSecret
+      )
+      .update(
+        encodedPayload
+      )
+      .digest(
+        "base64url"
+      );
+
+  if (
+    !safeTextEqual(
+      suppliedSignature,
+      expectedSignature
+    )
+  ) {
+    return false;
+  }
+
+  let payload;
+
+  try {
+    payload =
+      JSON.parse(
+        Buffer
+          .from(
+            encodedPayload,
+            "base64url"
+          )
+          .toString("utf8")
+      );
+  } catch {
+    return false;
+  }
+
+  if (
+    payload?.purpose !==
+      "pickel-lab-schedule" ||
+    !Number.isInteger(
+      payload?.exp
+    )
+  ) {
+    return false;
+  }
+
+  return payload.exp >
+    Math.floor(
+      Date.now() / 1000
+    );
+}
+
+function parseCookies(
+  cookieHeader
+) {
+  const result = {};
+
+  for (
+    const item
+    of String(
+      cookieHeader
+    ).split(";")
+  ) {
+    const separatorIndex =
+      item.indexOf("=");
+
+    if (
+      separatorIndex < 0
+    ) {
+      continue;
+    }
+
+    const name =
+      item
+        .slice(
+          0,
+          separatorIndex
+        )
+        .trim();
+
+    const value =
+      item
+        .slice(
+          separatorIndex + 1
+        )
+        .trim();
+
+    if (name) {
+      result[name] =
+        value;
+    }
+  }
+
+  return result;
+}
+
+function safeTextEqual(
+  first,
+  second
+) {
+  const firstBuffer =
+    Buffer.from(
+      String(first)
+    );
+
+  const secondBuffer =
+    Buffer.from(
+      String(second)
+    );
+
+  if (
+    firstBuffer.length !==
+    secondBuffer.length
+  ) {
+    return false;
+  }
+
+  return crypto.timingSafeEqual(
+    firstBuffer,
+    secondBuffer
   );
 }
 
 /* =========================================================
-   Helpers
+   Utility functions
    ========================================================= */
 
 function normalizeText(
@@ -749,7 +946,9 @@ function normalizeText(
 function containsMarkup(
   value
 ) {
-  return /[<>]/.test(value);
+  return /[<>]/.test(
+    value
+  );
 }
 
 function parsePositiveInteger(
@@ -782,17 +981,6 @@ function getQueryValue(
   return value;
 }
 
-function isValidDateString(
-  value
-) {
-  return (
-    typeof value === "string" &&
-    /^\d{4}-\d{2}-\d{2}$/.test(
-      value
-    )
-  );
-}
-
 function invalid(error) {
   return {
     ok: false,
@@ -818,6 +1006,11 @@ function setSecurityHeaders(
   response.setHeader(
     "Cache-Control",
     "no-store"
+  );
+
+  response.setHeader(
+    "Pragma",
+    "no-cache"
   );
 
   response.setHeader(
