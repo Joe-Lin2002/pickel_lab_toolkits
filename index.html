@@ -8,25 +8,125 @@
     content="width=device-width, initial-scale=1.0"
   >
 
-  <title>Pickel Lab Equipment Schedule</title>
+  <title>
+    Pickel Lab Equipment Schedule
+  </title>
 
-  <!--
-    每次修改代码后递增版本号，
-    可以减少 Microsoft Teams 使用旧缓存的问题。
-  -->
   <link
     rel="stylesheet"
-    href="style.css?v=20260723-12"
+    href="style.css?v=0.1.0-20260726"
   >
-
 </head>
 
 <body>
-  <main class="app">
 
+  <!-- =====================================
+       Device authentication screen
+       ===================================== -->
+
+  <div
+    id="access-gate"
+    class="access-gate"
+  >
+    <form
+      id="access-form"
+      class="access-panel"
+    >
+      <div class="access-brand">
+        <span class="access-brand-mark">
+          PL
+        </span>
+
+        <div>
+          <h1>
+            Pickel Lab
+          </h1>
+
+          <p>
+            Equipment Schedule
+          </p>
+        </div>
+      </div>
+
+      <h2>
+        Access required
+      </h2>
+
+      <p class="access-description">
+        Enter the lab access code. This device
+        will remain signed in for up to 90 days.
+      </p>
+
+      <label for="access-code">
+        Access code
+      </label>
+
+      <div class="password-field">
+        <input
+          id="access-code"
+          type="password"
+          maxlength="100"
+          autocomplete="current-password"
+          required
+        >
+
+        <button
+          id="toggle-password"
+          class="password-toggle"
+          type="button"
+          aria-label="Show access code"
+        >
+          Show
+        </button>
+      </div>
+
+      <p
+        id="access-error"
+        class="access-error"
+        role="alert"
+      ></p>
+
+      <button
+        id="access-submit"
+        class="access-submit"
+        type="submit"
+      >
+        Unlock Schedule
+      </button>
+
+      <p class="remember-note">
+        A secure browser cookie is used to
+        remember this device.
+      </p>
+    </form>
+  </div>
+
+  <!-- =====================================
+       Main application
+       ===================================== -->
+
+  <main
+    id="main-app"
+    class="app app-locked"
+  >
     <header class="header">
-      <h1>Equipment Schedule</h1>
-      <p>Pickel Lab</p>
+      <div>
+        <h1>
+          Equipment Schedule
+        </h1>
+
+        <p>
+          Pickel Lab
+        </p>
+      </div>
+
+      <button
+        id="logout-button"
+        class="logout-button"
+        type="button"
+      >
+        Forget this device
+      </button>
     </header>
 
     <div class="schedule-toolbar">
@@ -70,7 +170,7 @@
         id="schedule-card"
         class="schedule-card"
         tabindex="0"
-        aria-label="Equipment schedule. Scroll horizontally to view later times."
+        aria-label="Equipment schedule"
       >
         <div
           id="schedule"
@@ -83,7 +183,6 @@
         <button
           id="scroll-left"
           type="button"
-          aria-label="Scroll toward earlier times"
         >
           ← Earlier
         </button>
@@ -95,7 +194,6 @@
         <button
           id="scroll-right"
           type="button"
-          aria-label="Scroll toward later times"
         >
           Later →
         </button>
@@ -110,10 +208,19 @@
     ></p>
 
     <footer class="footer">
-      Developed by Junyi Lin · July 2026
-    </footer>
+      <span>
+        Developed by Junyi Lin · July 2026
+      </span>
 
+      <span class="version-badge">
+        v0.1 · July 26, 2026
+      </span>
+    </footer>
   </main>
+
+  <!-- =====================================
+       Reservation dialog
+       ===================================== -->
 
   <dialog id="reservation-dialog">
 
@@ -150,7 +257,6 @@
           id="person-name"
           type="text"
           maxlength="50"
-          placeholder="Enter your name"
           required
         >
       </label>
@@ -162,7 +268,6 @@
           id="reservation-title"
           type="text"
           maxlength="100"
-          placeholder="Example: UCNP heating experiment"
           required
         >
       </label>
@@ -234,6 +339,8 @@
 
   </dialog>
 
-  <script src="app.js?v=20260723-12"></script>
+  <script
+    src="app.js?v=0.1.0-20260726"
+  ></script>
 </body>
 </html>

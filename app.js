@@ -1,32 +1,17 @@
 "use strict";
 
 /* =========================================================
-   API configuration
-
-   The browser no longer connects directly to Supabase.
-   All database operations go through the Vercel API.
+   API endpoints
    ========================================================= */
 
-const API_URL = "/api/reservations";
+const AUTH_API_URL =
+  "/api/auth";
 
-const ACCESS_CODE_STORAGE_KEY =
-  "pickel_lab_access_code";
-
-/*
-  The access code is stored only for the current browser or
-  Teams-tab session. Closing the session usually clears it.
-*/
-
-let labAccessCode =
-  sessionStorage.getItem(
-    ACCESS_CODE_STORAGE_KEY
-  ) ?? "";
+const RESERVATIONS_API_URL =
+  "/api/reservations";
 
 /* =========================================================
-   Equipment configuration
-
-   Change only the displayed names if needed.
-   Keep IDs as 1, 2, and 3 unless the API is also updated.
+   Equipment
    ========================================================= */
 
 const resources = [
@@ -45,16 +30,7 @@ const resources = [
 ];
 
 /* =========================================================
-   Schedule configuration
-
-   Reservable range:
-   7:00 AM–11:00 PM
-
-   Header labels:
-   7 AM–10 PM
-
-   The right boundary represents 11:00 PM.
-   A reservation may end exactly at 11:00 PM.
+   Schedule settings
    ========================================================= */
 
 const DISPLAY_START_HOUR = 7;
@@ -69,14 +45,58 @@ const DISPLAY_MINUTES =
 
 const MINIMUM_HOUR_WIDTH = 82;
 
-const DEFAULT_RESERVATION_MINUTES = 60;
-
 const TIME_INCREMENT_MINUTES = 15;
+
+const DEFAULT_RESERVATION_MINUTES = 60;
 
 const SCROLL_AMOUNT = 410;
 
 /* =========================================================
-   HTML elements
+   Authentication elements
+   ========================================================= */
+
+const accessGate =
+  document.querySelector(
+    "#access-gate"
+  );
+
+const accessForm =
+  document.querySelector(
+    "#access-form"
+  );
+
+const accessCodeInput =
+  document.querySelector(
+    "#access-code"
+  );
+
+const accessError =
+  document.querySelector(
+    "#access-error"
+  );
+
+const accessSubmitButton =
+  document.querySelector(
+    "#access-submit"
+  );
+
+const togglePasswordButton =
+  document.querySelector(
+    "#toggle-password"
+  );
+
+const logoutButton =
+  document.querySelector(
+    "#logout-button"
+  );
+
+const mainApp =
+  document.querySelector(
+    "#main-app"
+  );
+
+/* =========================================================
+   Schedule elements
    ========================================================= */
 
 const scheduleElement =
@@ -98,6 +118,35 @@ const statusMessage =
   document.querySelector(
     "#status-message"
   );
+
+const previousDayButton =
+  document.querySelector(
+    "#previous-day"
+  );
+
+const todayButton =
+  document.querySelector(
+    "#today-button"
+  );
+
+const nextDayButton =
+  document.querySelector(
+    "#next-day"
+  );
+
+const scrollLeftButton =
+  document.querySelector(
+    "#scroll-left"
+  );
+
+const scrollRightButton =
+  document.querySelector(
+    "#scroll-right"
+  );
+
+/* =========================================================
+   Reservation-dialog elements
+   ========================================================= */
 
 const dialog =
   document.querySelector(
@@ -164,33 +213,8 @@ const cancelButton =
     "#cancel-button"
   );
 
-const previousDayButton =
-  document.querySelector(
-    "#previous-day"
-  );
-
-const todayButton =
-  document.querySelector(
-    "#today-button"
-  );
-
-const nextDayButton =
-  document.querySelector(
-    "#next-day"
-  );
-
-const scrollLeftButton =
-  document.querySelector(
-    "#scroll-left"
-  );
-
-const scrollRightButton =
-  document.querySelector(
-    "#scroll-right"
-  );
-
 /* =========================================================
-   Application state
+   State
    ========================================================= */
 
 let currentReservations = [];
@@ -201,7 +225,7 @@ let updateScheduleDimensions =
   () => {};
 
 /* =========================================================
-   Start application
+   Initialize
    ========================================================= */
 
 initialize();
@@ -219,30 +243,43 @@ async function initialize() {
   initializeResponsiveSchedule();
   initializeScheduleScrolling();
 
-  /*
-    Draw the empty schedule immediately.
-  */
-
   renderSchedule();
 
-  /*
-    Loading reservations will request the lab access code
-    when no code is stored for the current session.
-  */
+  const authenticated =
+    await checkExistingSession();
 
-  await loadReservations();
+  if (authenticated) {
+    unlockApplication();
+
+    await loadReservations();
+  } else {
+    showAccessGate();
+  }
 }
 
 /* =========================================================
-   Validate required HTML
+   Required-element validation
    ========================================================= */
 
 function validateRequiredElements() {
-  const requiredElements = {
+  const required = {
+    accessGate,
+    accessForm,
+    accessCodeInput,
+    accessError,
+    accessSubmitButton,
+    togglePasswordButton,
+    logoutButton,
+    mainApp,
     scheduleElement,
     scheduleCard,
     datePicker,
     statusMessage,
+    previousDayButton,
+    todayButton,
+    nextDayButton,
+    scrollLeftButton,
+    scrollRightButton,
     dialog,
     dialogTitle,
     form,
@@ -256,17 +293,10 @@ function validateRequiredElements() {
     formError,
     deleteButton,
     cancelButton,
-    previousDayButton,
-    todayButton,
-    nextDayButton,
-    scrollLeftButton,
-    scrollRightButton,
   };
 
-  const missingElements =
-    Object.entries(
-      requiredElements
-    )
+  const missing =
+    Object.entries(required)
       .filter(
         ([, element]) =>
           !element
@@ -276,12 +306,10 @@ function validateRequiredElements() {
           name
       );
 
-  if (
-    missingElements.length > 0
-  ) {
+  if (missing.length) {
     throw new Error(
-      "Missing required HTML elements: " +
-      missingElements.join(", ")
+      "Missing HTML elements: " +
+      missing.join(", ")
     );
   }
 }
@@ -291,6 +319,22 @@ function validateRequiredElements() {
    ========================================================= */
 
 function attachEventListeners() {
+  accessForm.addEventListener(
+    "submit",
+    handleAccessSubmit
+  );
+
+  togglePasswordButton
+    .addEventListener(
+      "click",
+      togglePasswordVisibility
+    );
+
+  logoutButton.addEventListener(
+    "click",
+    forgetThisDevice
+  );
+
   previousDayButton.addEventListener(
     "click",
     async () => {
@@ -357,8 +401,8 @@ function attachEventListeners() {
   );
 
   /*
-    Close the dialog when the user clicks directly
-    on the dialog backdrop.
+    Clicking the dialog backdrop closes
+    the reservation dialog.
   */
 
   dialog.addEventListener(
@@ -374,137 +418,298 @@ function attachEventListeners() {
 }
 
 /* =========================================================
-   Access-code handling
+   Authentication
    ========================================================= */
 
-function requestLabAccessCode() {
-  const enteredCode =
-    window.prompt(
-      "Enter the Pickel Lab access code:"
+async function checkExistingSession() {
+  try {
+    const response =
+      await fetch(
+        AUTH_API_URL,
+        {
+          method: "GET",
+          credentials: "include",
+          cache: "no-store",
+        }
+      );
+
+    if (!response.ok) {
+      return false;
+    }
+
+    const payload =
+      await response.json();
+
+    return (
+      payload.authenticated ===
+      true
+    );
+  } catch (error) {
+    console.error(
+      "Session check failed:",
+      error
     );
 
-  if (
-    enteredCode === null
-  ) {
     return false;
   }
-
-  const trimmedCode =
-    enteredCode.trim();
-
-  if (!trimmedCode) {
-    window.alert(
-      "An access code is required."
-    );
-
-    return false;
-  }
-
-  labAccessCode =
-    trimmedCode;
-
-  sessionStorage.setItem(
-    ACCESS_CODE_STORAGE_KEY,
-    labAccessCode
-  );
-
-  return true;
 }
 
-function clearStoredAccessCode() {
-  labAccessCode = "";
+async function handleAccessSubmit(
+  event
+) {
+  event.preventDefault();
 
-  sessionStorage.removeItem(
-    ACCESS_CODE_STORAGE_KEY
+  accessError.textContent =
+    "";
+
+  const accessCode =
+    accessCodeInput
+      .value
+      .trim();
+
+  if (!accessCode) {
+    accessError.textContent =
+      "Please enter the access code.";
+
+    accessCodeInput.focus();
+
+    return;
+  }
+
+  setAccessFormBusy(true);
+
+  try {
+    const response =
+      await fetch(
+        AUTH_API_URL,
+        {
+          method: "POST",
+
+          credentials:
+            "include",
+
+          cache: "no-store",
+
+          headers: {
+            "Content-Type":
+              "application/json",
+          },
+
+          body:
+            JSON.stringify({
+              accessCode,
+            }),
+        }
+      );
+
+    const payload =
+      await readJsonResponse(
+        response
+      );
+
+    if (!response.ok) {
+      throw new Error(
+        payload.error ??
+        "Authentication failed."
+      );
+    }
+
+    accessCodeInput.value =
+      "";
+
+    unlockApplication();
+
+    await loadReservations();
+  } catch (error) {
+    console.error(
+      "Login failed:",
+      error
+    );
+
+    accessError.textContent =
+      error?.message ??
+      "Could not sign in.";
+
+    accessCodeInput.select();
+  } finally {
+    setAccessFormBusy(false);
+  }
+}
+
+async function forgetThisDevice() {
+  logoutButton.disabled =
+    true;
+
+  try {
+    await fetch(
+      AUTH_API_URL,
+      {
+        method: "DELETE",
+        credentials: "include",
+        cache: "no-store",
+      }
+    );
+  } catch (error) {
+    console.error(
+      "Logout request failed:",
+      error
+    );
+  } finally {
+    currentReservations = [];
+
+    renderSchedule();
+
+    showAccessGate();
+
+    logoutButton.disabled =
+      false;
+  }
+}
+
+function unlockApplication() {
+  accessGate.classList.add(
+    "access-gate-hidden"
   );
+
+  mainApp.classList.remove(
+    "app-locked"
+  );
+
+  accessError.textContent =
+    "";
+
+  requestAnimationFrame(
+    () => {
+      updateScheduleDimensions();
+    }
+  );
+}
+
+function showAccessGate() {
+  if (
+    dialog.open
+  ) {
+    dialog.close();
+  }
+
+  mainApp.classList.add(
+    "app-locked"
+  );
+
+  accessGate.classList.remove(
+    "access-gate-hidden"
+  );
+
+  accessCodeInput.value =
+    "";
+
+  window.setTimeout(
+    () => {
+      accessCodeInput.focus();
+    },
+    0
+  );
+}
+
+function setAccessFormBusy(
+  isBusy
+) {
+  accessCodeInput.disabled =
+    isBusy;
+
+  accessSubmitButton.disabled =
+    isBusy;
+
+  togglePasswordButton.disabled =
+    isBusy;
+
+  accessSubmitButton.textContent =
+    isBusy
+      ? "Checking..."
+      : "Unlock Schedule";
+}
+
+function togglePasswordVisibility() {
+  const showingPassword =
+    accessCodeInput.type ===
+    "text";
+
+  accessCodeInput.type =
+    showingPassword
+      ? "password"
+      : "text";
+
+  togglePasswordButton.textContent =
+    showingPassword
+      ? "Show"
+      : "Hide";
+
+  togglePasswordButton.setAttribute(
+    "aria-label",
+    showingPassword
+      ? "Show access code"
+      : "Hide access code"
+  );
+
+  accessCodeInput.focus();
 }
 
 /* =========================================================
-   Unified API request
-
-   Every request sends:
-   X-Lab-Access-Code: <shared code>
-
-   If the server responds with 401:
-   - clear the stored code
-   - ask the user for the code again
-   - retry once
+   Unified authenticated API request
    ========================================================= */
 
 async function apiRequest(
   url,
-  options = {},
-  allowCodeRetry = true
+  options = {}
 ) {
-  if (
-    !labAccessCode &&
-    !requestLabAccessCode()
-  ) {
-    throw new Error(
-      "Access code is required."
-    );
-  }
-
-  const requestOptions = {
-    ...options,
-
-    headers: {
-      "X-Lab-Access-Code":
-        labAccessCode,
-
-      ...(options.body
-        ? {
-            "Content-Type":
-              "application/json",
-          }
-        : {}),
-
-      ...(options.headers ?? {}),
-    },
-  };
-
   let response;
 
   try {
     response =
       await fetch(
         url,
-        requestOptions
+        {
+          ...options,
+
+          credentials:
+            "include",
+
+          cache:
+            "no-store",
+
+          headers: {
+            ...(options.body
+              ? {
+                  "Content-Type":
+                    "application/json",
+                }
+              : {}),
+
+            ...(options.headers ?? {}),
+          },
+        }
       );
-  } catch (error) {
+  } catch {
     throw new Error(
       "Could not connect to the reservation server."
     );
   }
 
-  let payload = {};
-
-  try {
-    payload =
-      await response.json();
-  } catch {
-    payload = {};
-  }
+  const payload =
+    await readJsonResponse(
+      response
+    );
 
   if (
-    response.status === 401 &&
-    allowCodeRetry
+    response.status === 401
   ) {
-    clearStoredAccessCode();
+    showAccessGate();
 
-    const codeEntered =
-      requestLabAccessCode();
+    accessError.textContent =
+      "Please enter the lab access code.";
 
-    if (!codeEntered) {
-      throw new Error(
-        "Access code is required."
-      );
-    }
-
-    return apiRequest(
-      url,
-      options,
-      false
+    throw new Error(
+      "Authentication required."
     );
   }
 
@@ -518,18 +723,18 @@ async function apiRequest(
   return payload;
 }
 
+async function readJsonResponse(
+  response
+) {
+  try {
+    return await response.json();
+  } catch {
+    return {};
+  }
+}
+
 /* =========================================================
-   Teams iframe responsive width
-
-   The timeline remains at least:
-   16 hours × 82 px = 1312 px
-
-   When Teams is narrow:
-   - the inner schedule remains wide
-   - schedule-card scrolls horizontally
-
-   When Teams is wide:
-   - the schedule expands to fill the available space
+   Responsive schedule width
    ========================================================= */
 
 function initializeResponsiveSchedule() {
@@ -547,16 +752,12 @@ function initializeResponsiveSchedule() {
       let resourceColumnWidth =
         145;
 
-      if (
-        cardWidth < 800
-      ) {
+      if (cardWidth < 800) {
         resourceColumnWidth =
           125;
       }
 
-      if (
-        cardWidth < 600
-      ) {
+      if (cardWidth < 600) {
         resourceColumnWidth =
           110;
       }
@@ -597,11 +798,6 @@ function initializeResponsiveSchedule() {
         `${scheduleWidth}px`
       );
 
-      /*
-        Explicit inline widths improve reliability in the
-        embedded Teams browser.
-      */
-
       scheduleElement.style.width =
         `${scheduleWidth}px`;
 
@@ -610,8 +806,7 @@ function initializeResponsiveSchedule() {
 
       scheduleElement
         .querySelectorAll(
-          ".schedule-header, " +
-          ".resource-row"
+          ".schedule-header, .resource-row"
         )
         .forEach(element => {
           element.style.width =
@@ -623,8 +818,7 @@ function initializeResponsiveSchedule() {
 
       scheduleElement
         .querySelectorAll(
-          ".timeline-header, " +
-          ".timeline-row"
+          ".timeline-header, .timeline-row"
         )
         .forEach(element => {
           element.style.width =
@@ -644,9 +838,7 @@ function initializeResponsiveSchedule() {
   ) {
     scheduleResizeObserver =
       new ResizeObserver(
-        () => {
-          updateScheduleDimensions();
-        }
+        updateScheduleDimensions
       );
 
     scheduleResizeObserver.observe(
@@ -659,10 +851,6 @@ function initializeResponsiveSchedule() {
     updateScheduleDimensions
   );
 
-  /*
-    Teams may update the tab's iframe size after loading.
-  */
-
   window.setTimeout(
     updateScheduleDimensions,
     100
@@ -670,12 +858,7 @@ function initializeResponsiveSchedule() {
 
   window.setTimeout(
     updateScheduleDimensions,
-    350
-  );
-
-  window.setTimeout(
-    updateScheduleDimensions,
-    800
+    500
   );
 
   window.setTimeout(
@@ -685,7 +868,7 @@ function initializeResponsiveSchedule() {
 }
 
 /* =========================================================
-   Horizontal schedule scrolling
+   Horizontal scrolling
    ========================================================= */
 
 function initializeScheduleScrolling() {
@@ -714,11 +897,6 @@ function initializeScheduleScrolling() {
     updateScrollButtonStates
   );
 
-  /*
-    Convert mouse-wheel movement to horizontal scrolling
-    while the pointer is over the schedule.
-  */
-
   scheduleCard.addEventListener(
     "wheel",
     event => {
@@ -736,9 +914,7 @@ function initializeScheduleScrolling() {
           ? event.deltaX
           : event.deltaY;
 
-      if (
-        movement === 0
-      ) {
+      if (!movement) {
         return;
       }
 
@@ -778,33 +954,8 @@ function initializeScheduleScrolling() {
           behavior: "smooth",
         });
       }
-
-      if (
-        event.key === "Home"
-      ) {
-        event.preventDefault();
-
-        scheduleCard.scrollTo({
-          left: 0,
-          behavior: "smooth",
-        });
-      }
-
-      if (
-        event.key === "End"
-      ) {
-        event.preventDefault();
-
-        scheduleCard.scrollTo({
-          left:
-            scheduleCard.scrollWidth,
-          behavior: "smooth",
-        });
-      }
     }
   );
-
-  updateScrollButtonStates();
 }
 
 function updateScrollButtonStates() {
@@ -849,7 +1000,7 @@ function changeDate(
 }
 
 /* =========================================================
-   Load reservations from Vercel API
+   Load reservations
    ========================================================= */
 
 async function loadReservations() {
@@ -869,9 +1020,6 @@ async function loadReservations() {
 
   const query =
     new URLSearchParams({
-      date:
-        datePicker.value,
-
       start:
         dayStart.toISOString(),
 
@@ -882,7 +1030,7 @@ async function loadReservations() {
   try {
     const payload =
       await apiRequest(
-        `${API_URL}?${query.toString()}`,
+        `${RESERVATIONS_API_URL}?${query.toString()}`,
         {
           method: "GET",
         }
@@ -899,28 +1047,28 @@ async function loadReservations() {
 
     setStatus("");
   } catch (error) {
-    console.error(
-      "Could not load reservations:",
-      error
-    );
-
     currentReservations = [];
 
     renderSchedule();
 
-    setStatus(
-      error?.message ??
-      "Could not load reservations."
-    );
+    if (
+      error.message !==
+      "Authentication required."
+    ) {
+      setStatus(
+        error.message
+      );
+    }
   }
 }
 
 /* =========================================================
-   Render schedule
+   Schedule rendering
    ========================================================= */
 
 function renderSchedule() {
-  scheduleElement.innerHTML = "";
+  scheduleElement.innerHTML =
+    "";
 
   createScheduleHeader();
 
@@ -933,29 +1081,10 @@ function renderSchedule() {
     );
   }
 
-  /*
-    Reapply explicit widths after rebuilding the DOM.
-  */
-
   requestAnimationFrame(
-    () => {
-      updateScheduleDimensions();
-    }
+    updateScheduleDimensions
   );
 }
-
-/* =========================================================
-   Create schedule header
-
-   The condition uses:
-   hour < DISPLAY_END_HOUR
-
-   Therefore the header displays:
-   7 AM through 10 PM
-
-   It does not display 11 PM.
-   The right boundary still represents 11 PM.
-   ========================================================= */
 
 function createScheduleHeader() {
   const header =
@@ -997,15 +1126,12 @@ function createScheduleHeader() {
     label.className =
       "hour-label";
 
-    const minutesFromStart =
-      (
-        hour -
-        DISPLAY_START_HOUR
-      ) * 60;
-
     label.style.left =
       `${minutesToPercent(
-        minutesFromStart
+        (
+          hour -
+          DISPLAY_START_HOUR
+        ) * 60
       )}%`;
 
     label.textContent =
@@ -1025,10 +1151,6 @@ function createScheduleHeader() {
     header
   );
 }
-
-/* =========================================================
-   Create one equipment row
-   ========================================================= */
 
 function createResourceRow(
   resource
@@ -1052,9 +1174,6 @@ function createResourceRow(
   name.textContent =
     resource.name;
 
-  name.title =
-    resource.name;
-
   const timeline =
     document.createElement(
       "div"
@@ -1062,9 +1181,6 @@ function createResourceRow(
 
   timeline.className =
     "timeline-row";
-
-  timeline.dataset.resourceId =
-    String(resource.id);
 
   timeline.addEventListener(
     "click",
@@ -1076,18 +1192,17 @@ function createResourceRow(
     }
   );
 
-  const reservationsForResource =
+  const matchingReservations =
     currentReservations.filter(
       reservation =>
         Number(
           reservation.resource_id
-        ) ===
-        Number(resource.id)
+        ) === resource.id
     );
 
   for (
     const reservation
-    of reservationsForResource
+    of matchingReservations
   ) {
     const block =
       createReservationBlock(
@@ -1111,18 +1226,11 @@ function createResourceRow(
   );
 }
 
-/* =========================================================
-   Create reservation block
-   ========================================================= */
-
 function createReservationBlock(
   reservation
 ) {
-  const dayStart =
-    selectedLocalDate();
-
   const displayStart =
-    new Date(dayStart);
+    selectedLocalDate();
 
   displayStart.setHours(
     DISPLAY_START_HOUR,
@@ -1132,7 +1240,7 @@ function createReservationBlock(
   );
 
   const displayEnd =
-    new Date(dayStart);
+    selectedLocalDate();
 
   displayEnd.setHours(
     DISPLAY_END_HOUR,
@@ -1152,59 +1260,37 @@ function createReservationBlock(
     );
 
   if (
-    Number.isNaN(
-      start.getTime()
-    ) ||
-    Number.isNaN(
-      end.getTime()
-    )
-  ) {
-    console.warn(
-      "Invalid reservation:",
-      reservation
-    );
-
-    return null;
-  }
-
-  if (
     end <= displayStart ||
     start >= displayEnd
   ) {
     return null;
   }
 
-  const startMinutes =
-    (
-      start -
-      displayStart
-    ) / 60000;
-
-  const endMinutes =
-    (
-      end -
-      displayStart
-    ) / 60000;
-
   const clippedStart =
     Math.max(
       0,
-      startMinutes
+      (
+        start -
+        displayStart
+      ) /
+      60000
     );
 
   const clippedEnd =
     Math.min(
       DISPLAY_MINUTES,
-      endMinutes
+      (
+        end -
+        displayStart
+      ) /
+      60000
     );
 
-  const visibleDuration =
+  const duration =
     clippedEnd -
     clippedStart;
 
-  if (
-    visibleDuration <= 0
-  ) {
+  if (duration <= 0) {
     return null;
   }
 
@@ -1213,7 +1299,8 @@ function createReservationBlock(
       "button"
     );
 
-  block.type = "button";
+  block.type =
+    "button";
 
   block.className =
     "reservation";
@@ -1225,14 +1312,8 @@ function createReservationBlock(
 
   block.style.width =
     `${minutesToPercent(
-      visibleDuration
+      duration
     )}%`;
-
-  block.title =
-    `${reservation.title}\n` +
-    `${reservation.person_name}\n` +
-    `${formatTime(start)}–` +
-    `${formatTime(end)}`;
 
   const title =
     document.createElement(
@@ -1243,8 +1324,7 @@ function createReservationBlock(
     "reservation-title";
 
   title.textContent =
-    reservation.title ??
-    "";
+    reservation.title;
 
   const details =
     document.createElement(
@@ -1255,7 +1335,7 @@ function createReservationBlock(
     "reservation-details";
 
   details.textContent =
-    `${reservation.person_name ?? ""} · ` +
+    `${reservation.person_name} · ` +
     `${formatTime(start)}–` +
     `${formatTime(end)}`;
 
@@ -1279,38 +1359,29 @@ function createReservationBlock(
 }
 
 /* =========================================================
-   Open create dialog
+   Reservation dialog
    ========================================================= */
 
 function openCreateDialog(
   resource,
-  clickEvent
+  event
 ) {
   clearDialog();
 
   dialogTitle.textContent =
     "Add Reservation";
 
-  const timeline =
-    clickEvent.currentTarget;
-
-  const timelineRect =
-    timeline.getBoundingClientRect();
-
-  if (
-    timelineRect.width <= 0
-  ) {
-    return;
-  }
-
-  const clickPosition =
-    clickEvent.clientX -
-    timelineRect.left;
+  const rectangle =
+    event.currentTarget
+      .getBoundingClientRect();
 
   const fraction =
     clamp(
-      clickPosition /
-      timelineRect.width,
+      (
+        event.clientX -
+        rectangle.left
+      ) /
+      rectangle.width,
       0,
       1
     );
@@ -1328,31 +1399,22 @@ function openCreateDialog(
     ) *
     TIME_INCREMENT_MINUTES;
 
-  const minimumMinutes =
-    DISPLAY_START_HOUR *
-    60;
-
-  const maximumMinutes =
-    DISPLAY_END_HOUR *
-    60;
-
-  /*
-    Latest valid start is 10:45 PM.
-  */
-
   selectedMinutes =
     clamp(
       selectedMinutes,
-      minimumMinutes,
-      maximumMinutes -
-      TIME_INCREMENT_MINUTES
+      DISPLAY_START_HOUR *
+        60,
+      DISPLAY_END_HOUR *
+        60 -
+        TIME_INCREMENT_MINUTES
     );
 
   const endMinutes =
     Math.min(
       selectedMinutes +
       DEFAULT_RESERVATION_MINUTES,
-      maximumMinutes
+      DISPLAY_END_HOUR *
+      60
     );
 
   resourceIdInput.value =
@@ -1380,10 +1442,6 @@ function openCreateDialog(
   personNameInput.focus();
 }
 
-/* =========================================================
-   Open edit dialog
-   ========================================================= */
-
 function openEditDialog(
   reservation
 ) {
@@ -1395,7 +1453,7 @@ function openEditDialog(
   const resource =
     resources.find(
       item =>
-        Number(item.id) ===
+        item.id ===
         Number(
           reservation.resource_id
         )
@@ -1416,12 +1474,10 @@ function openEditDialog(
     "Unknown equipment";
 
   personNameInput.value =
-    reservation.person_name ??
-    "";
+    reservation.person_name;
 
   titleInput.value =
-    reservation.title ??
-    "";
+    reservation.title;
 
   startTimeInput.value =
     dateToTimeInput(
@@ -1442,13 +1498,7 @@ function openEditDialog(
   );
 
   dialog.showModal();
-
-  personNameInput.focus();
 }
-
-/* =========================================================
-   Clear dialog
-   ========================================================= */
 
 function clearDialog() {
   form.reset();
@@ -1466,10 +1516,6 @@ function clearDialog() {
     "";
 }
 
-/* =========================================================
-   Suggested end time
-   ========================================================= */
-
 function updateSuggestedEndTime() {
   const startMinutes =
     timeInputToMinutes(
@@ -1482,36 +1528,29 @@ function updateSuggestedEndTime() {
     return;
   }
 
-  const currentEndMinutes =
+  const endMinutes =
     timeInputToMinutes(
       endTimeInput.value
     );
 
-  const maximumMinutes =
-    DISPLAY_END_HOUR *
-    60;
-
-  const suggestedEnd =
-    Math.min(
-      startMinutes +
-      DEFAULT_RESERVATION_MINUTES,
-      maximumMinutes
-    );
-
   if (
-    currentEndMinutes === null ||
-    currentEndMinutes <=
-      startMinutes
+    endMinutes === null ||
+    endMinutes <= startMinutes
   ) {
     endTimeInput.value =
       minutesToTimeInput(
-        suggestedEnd
+        Math.min(
+          startMinutes +
+          DEFAULT_RESERVATION_MINUTES,
+          DISPLAY_END_HOUR *
+          60
+        )
       );
   }
 }
 
 /* =========================================================
-   Save reservation through Vercel API
+   Save reservation
    ========================================================= */
 
 async function saveReservation(
@@ -1535,86 +1574,10 @@ async function saveReservation(
       .value
       .trim();
 
-  const reservationTitle =
+  const title =
     titleInput
       .value
       .trim();
-
-  if (
-    !Number.isInteger(
-      resourceId
-    ) ||
-    !resources.some(
-      resource =>
-        resource.id ===
-        resourceId
-    )
-  ) {
-    formError.textContent =
-      "Invalid equipment selection.";
-
-    return;
-  }
-
-  if (!personName) {
-    formError.textContent =
-      "Please enter your name.";
-
-    personNameInput.focus();
-
-    return;
-  }
-
-  if (
-    personName.length > 50
-  ) {
-    formError.textContent =
-      "Name cannot exceed 50 characters.";
-
-    return;
-  }
-
-  if (
-    !reservationTitle
-  ) {
-    formError.textContent =
-      "Please enter a description.";
-
-    titleInput.focus();
-
-    return;
-  }
-
-  if (
-    reservationTitle.length > 100
-  ) {
-    formError.textContent =
-      "Description cannot exceed 100 characters.";
-
-    return;
-  }
-
-  if (
-    containsMarkup(personName) ||
-    containsMarkup(
-      reservationTitle
-    )
-  ) {
-    formError.textContent =
-      "The name and description cannot contain < or > characters.";
-
-    return;
-  }
-
-  if (
-    !startTimeInput.value ||
-    !endTimeInput.value
-  ) {
-    formError.textContent =
-      "Please select a start and end time.";
-
-    return;
-  }
 
   const start =
     combineSelectedDateAndTime(
@@ -1626,116 +1589,65 @@ async function saveReservation(
       endTimeInput.value
     );
 
-  if (
-    Number.isNaN(
-      start.getTime()
-    ) ||
-    Number.isNaN(
-      end.getTime()
-    )
-  ) {
+  if (!personName) {
     formError.textContent =
-      "Invalid reservation time.";
+      "Please enter your name.";
+
+    return;
+  }
+
+  if (!title) {
+    formError.textContent =
+      "Please enter a description.";
 
     return;
   }
 
   if (
-    !(start < end)
+    containsMarkup(
+      personName
+    ) ||
+    containsMarkup(title)
   ) {
+    formError.textContent =
+      "The name and description cannot contain < or >.";
+
+    return;
+  }
+
+  if (!(start < end)) {
     formError.textContent =
       "End time must be after start time.";
 
     return;
   }
 
-  const displayStart =
+  const allowedStart =
     selectedLocalDate();
 
-  displayStart.setHours(
+  allowedStart.setHours(
     DISPLAY_START_HOUR,
     0,
     0,
     0
   );
 
-  const displayEnd =
+  const allowedEnd =
     selectedLocalDate();
 
-  displayEnd.setHours(
+  allowedEnd.setHours(
     DISPLAY_END_HOUR,
     0,
     0,
     0
   );
 
-  /*
-    Ending exactly at 11 PM is valid.
-  */
-
   if (
-    start < displayStart ||
-    end > displayEnd
+    start < allowedStart ||
+    end > allowedEnd
   ) {
     formError.textContent =
-      "Reservations must be between " +
-      `${formatHourLabel(
-        DISPLAY_START_HOUR
-      )} and ` +
-      `${formatHourLabel(
-        DISPLAY_END_HOUR
-      )}.`;
-
-    return;
-  }
-
-  /*
-    Frontend conflict check for immediate feedback.
-    The Vercel API must also repeat this check.
-  */
-
-  const hasConflict =
-    currentReservations.some(
-      reservation => {
-        const sameResource =
-          Number(
-            reservation.resource_id
-          ) ===
-          resourceId;
-
-        const differentReservation =
-          String(
-            reservation.id
-          ) !==
-          String(
-            reservationId
-          );
-
-        const existingStart =
-          new Date(
-            reservation.start_time
-          );
-
-        const existingEnd =
-          new Date(
-            reservation.end_time
-          );
-
-        const overlaps =
-          start < existingEnd &&
-          end > existingStart;
-
-        return (
-          sameResource &&
-          differentReservation &&
-          overlaps
-        );
-      }
-    );
-
-  if (hasConflict) {
-    formError.textContent =
-      "This equipment is already reserved during that time.";
+      "Reservations must be between 7 AM and 11 PM.";
 
     return;
   }
@@ -1747,8 +1659,7 @@ async function saveReservation(
     person_name:
       personName,
 
-    title:
-      reservationTitle,
+    title,
 
     start_time:
       start.toISOString(),
@@ -1762,7 +1673,7 @@ async function saveReservation(
   try {
     if (reservationId) {
       await apiRequest(
-        API_URL,
+        RESERVATIONS_API_URL,
         {
           method: "PUT",
 
@@ -1779,7 +1690,7 @@ async function saveReservation(
       );
     } else {
       await apiRequest(
-        API_URL,
+        RESERVATIONS_API_URL,
         {
           method: "POST",
 
@@ -1795,21 +1706,15 @@ async function saveReservation(
 
     await loadReservations();
   } catch (error) {
-    console.error(
-      "Could not save reservation:",
-      error
-    );
-
     formError.textContent =
-      error?.message ??
-      "Could not save the reservation.";
+      error.message;
   } finally {
     setDialogBusy(false);
   }
 }
 
 /* =========================================================
-   Delete reservation through Vercel API
+   Delete reservation
    ========================================================= */
 
 async function deleteReservation() {
@@ -1820,12 +1725,32 @@ async function deleteReservation() {
     return;
   }
 
-  const confirmed =
-    window.confirm(
-      "Are you sure you want to delete this reservation?"
+  /*
+    Teams may block window.confirm, so deletion uses
+    a second click on the Delete button instead.
+  */
+
+  if (
+    deleteButton.dataset.confirming !==
+    "true"
+  ) {
+    deleteButton.dataset.confirming =
+      "true";
+
+    deleteButton.textContent =
+      "Click again to confirm";
+
+    window.setTimeout(
+      () => {
+        deleteButton.dataset.confirming =
+          "false";
+
+        deleteButton.textContent =
+          "Delete";
+      },
+      4000
     );
 
-  if (!confirmed) {
     return;
   }
 
@@ -1833,7 +1758,7 @@ async function deleteReservation() {
 
   try {
     await apiRequest(
-      `${API_URL}?id=${encodeURIComponent(
+      `${RESERVATIONS_API_URL}?id=${encodeURIComponent(
         reservationId
       )}`,
       {
@@ -1845,73 +1770,37 @@ async function deleteReservation() {
 
     await loadReservations();
   } catch (error) {
-    console.error(
-      "Could not delete reservation:",
-      error
-    );
-
     formError.textContent =
-      error?.message ??
-      "Could not delete the reservation.";
+      error.message;
   } finally {
+    deleteButton.dataset.confirming =
+      "false";
+
+    deleteButton.textContent =
+      "Delete";
+
     setDialogBusy(false);
   }
 }
 
-/* =========================================================
-   Disable dialog controls during API operations
-   ========================================================= */
-
 function setDialogBusy(
   isBusy
 ) {
-  const buttons =
-    form.querySelectorAll(
-      "button"
-    );
-
-  const inputs =
-    form.querySelectorAll(
-      "input:not([type='hidden']):not(:disabled)"
-    );
-
-  buttons.forEach(
-    button => {
-      button.disabled =
+  form
+    .querySelectorAll(
+      "button, input:not([type='hidden']):not(:disabled)"
+    )
+    .forEach(element => {
+      element.disabled =
         isBusy;
-    }
-  );
-
-  inputs.forEach(
-    input => {
-      input.disabled =
-        isBusy;
-    }
-  );
+    });
 }
 
 /* =========================================================
-   Date and time helpers
+   Utilities
    ========================================================= */
 
 function selectedLocalDate() {
-  if (
-    !datePicker.value
-  ) {
-    const now =
-      new Date();
-
-    return new Date(
-      now.getFullYear(),
-      now.getMonth(),
-      now.getDate(),
-      0,
-      0,
-      0,
-      0
-    );
-  }
-
   const [
     year,
     month,
@@ -1933,7 +1822,7 @@ function selectedLocalDate() {
 }
 
 function combineSelectedDateAndTime(
-  timeValue
+  value
 ) {
   const date =
     selectedLocalDate();
@@ -1942,7 +1831,7 @@ function combineSelectedDateAndTime(
     hours,
     minutes,
   ] =
-    timeValue
+    value
       .split(":")
       .map(Number);
 
@@ -1986,9 +1875,9 @@ function minutesToTimeInput(
 }
 
 function timeInputToMinutes(
-  timeValue
+  value
 ) {
-  if (!timeValue) {
+  if (!value) {
     return null;
   }
 
@@ -1996,16 +1885,9 @@ function timeInputToMinutes(
     hours,
     minutes,
   ] =
-    timeValue
+    value
       .split(":")
       .map(Number);
-
-  if (
-    Number.isNaN(hours) ||
-    Number.isNaN(minutes)
-  ) {
-    return null;
-  }
 
   return (
     hours * 60 +
@@ -2030,50 +1912,39 @@ function dateToTimeInput(
 function formatDateInput(
   date
 ) {
-  const year =
-    date.getFullYear();
-
-  const month =
-    String(
-      date.getMonth() + 1
-    ).padStart(2, "0");
-
-  const day =
-    String(
-      date.getDate()
-    ).padStart(2, "0");
-
   return (
-    `${year}-${month}-${day}`
+    `${date.getFullYear()}-` +
+    `${String(
+      date.getMonth() + 1
+    ).padStart(2, "0")}-` +
+    `${String(
+      date.getDate()
+    ).padStart(2, "0")}`
   );
 }
 
 function formatHourLabel(
   hour
 ) {
-  const suffix =
-    hour >= 12
-      ? "PM"
-      : "AM";
-
-  const displayedHour =
-    hour % 12 || 12;
-
   return (
-    `${displayedHour} ${suffix}`
+    `${hour % 12 || 12} ` +
+    `${hour >= 12
+      ? "PM"
+      : "AM"}`
   );
 }
 
 function formatTime(
   date
 ) {
-  return date.toLocaleTimeString(
-    [],
-    {
-      hour: "numeric",
-      minute: "2-digit",
-    }
-  );
+  return date
+    .toLocaleTimeString(
+      [],
+      {
+        hour: "numeric",
+        minute: "2-digit",
+      }
+    );
 }
 
 function containsMarkup(
@@ -2095,10 +1966,6 @@ function clamp(
     maximum
   );
 }
-
-/* =========================================================
-   Status message
-   ========================================================= */
 
 function setStatus(
   message

@@ -7,11 +7,6 @@
   color: #1f2937;
   background: #f3f4f6;
 
-  /*
-    这些变量也会由 JavaScript 根据
-    Teams iframe 的实际宽度更新。
-  */
-
   --resource-column-width: 145px;
   --timeline-width: 1312px;
   --schedule-width: 1457px;
@@ -43,19 +38,243 @@ button {
 }
 
 /* ========================================
-   Main page
+   Access screen
+   ======================================== */
+
+.access-gate {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 20px;
+
+  overflow-y: auto;
+
+  background:
+    linear-gradient(
+      145deg,
+      #e0f2fe,
+      #f8fafc 45%,
+      #e2e8f0
+    );
+}
+
+.access-gate-hidden {
+  display: none;
+}
+
+.access-panel {
+  width: min(
+    430px,
+    100%
+  );
+
+  padding: 30px;
+
+  border:
+    1px solid #cbd5e1;
+
+  border-radius: 14px;
+
+  background: white;
+
+  box-shadow:
+    0 25px 70px
+    rgb(15 23 42 / 18%);
+}
+
+.access-brand {
+  display: flex;
+  align-items: center;
+
+  gap: 12px;
+
+  margin-bottom: 28px;
+}
+
+.access-brand-mark {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  width: 48px;
+  height: 48px;
+
+  border-radius: 10px;
+
+  color: white;
+  background: #0369a1;
+
+  font-weight: 700;
+}
+
+.access-brand h1 {
+  margin: 0;
+
+  color: #0f172a;
+
+  font-size: 21px;
+}
+
+.access-brand p {
+  margin: 3px 0 0;
+
+  color: #64748b;
+
+  font-size: 13px;
+}
+
+.access-panel h2 {
+  margin:
+    0 0 8px;
+
+  color: #0f172a;
+
+  font-size: 24px;
+}
+
+.access-description {
+  margin:
+    0 0 22px;
+
+  color: #64748b;
+
+  line-height: 1.5;
+}
+
+.access-panel label {
+  display: block;
+
+  margin-bottom: 7px;
+
+  color: #334155;
+
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.password-field {
+  position: relative;
+}
+
+.password-field input {
+  width: 100%;
+  min-height: 46px;
+
+  padding:
+    10px 68px 10px 12px;
+
+  border:
+    1px solid #cbd5e1;
+
+  border-radius: 7px;
+
+  color: #0f172a;
+  background: white;
+}
+
+.password-field input:focus {
+  border-color: #0284c7;
+
+  outline:
+    2px solid #38bdf8;
+
+  outline-offset: 1px;
+}
+
+.password-toggle {
+  position: absolute;
+  top: 50%;
+  right: 7px;
+
+  padding: 6px 9px;
+
+  border: 0;
+  border-radius: 5px;
+
+  color: #0369a1;
+  background: transparent;
+
+  font-size: 12px;
+
+  transform:
+    translateY(-50%);
+}
+
+.password-toggle:hover {
+  background: #e0f2fe;
+}
+
+.access-error {
+  min-height: 20px;
+
+  margin: 10px 0;
+
+  color: #b91c1c;
+
+  font-size: 13px;
+}
+
+.access-submit {
+  width: 100%;
+  min-height: 45px;
+
+  border: 0;
+  border-radius: 7px;
+
+  color: white;
+  background: #0369a1;
+
+  font-weight: 600;
+}
+
+.access-submit:hover {
+  background: #075985;
+}
+
+.access-submit:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.remember-note {
+  margin:
+    14px 0 0;
+
+  color: #94a3b8;
+
+  font-size: 11px;
+  text-align: center;
+}
+
+/* ========================================
+   Main layout
    ======================================== */
 
 .app {
   width: 100%;
   min-width: 0;
-  max-width: none;
 
   margin: 0;
   padding: 14px;
 }
 
+.app-locked {
+  display: none;
+}
+
 .header {
+  display: flex;
+  justify-content:
+    space-between;
+  align-items: flex-start;
+
+  gap: 20px;
+
   margin-bottom: 12px;
 }
 
@@ -63,7 +282,6 @@ button {
   margin: 0;
 
   font-size: 28px;
-  line-height: 1.2;
 }
 
 .header p {
@@ -72,17 +290,34 @@ button {
   color: #6b7280;
 }
 
+.logout-button {
+  flex: 0 0 auto;
+
+  padding: 7px 11px;
+
+  border:
+    1px solid #cbd5e1;
+
+  border-radius: 6px;
+
+  color: #475569;
+  background: white;
+
+  font-size: 12px;
+}
+
+.logout-button:hover {
+  color: #991b1b;
+  border-color: #fca5a5;
+  background: #fef2f2;
+}
+
 /* ========================================
    Date controls
    ======================================== */
 
 .schedule-toolbar {
-  display: flex;
-  justify-content: flex-start;
-  align-items: center;
-
   width: 100%;
-  min-width: 0;
 
   margin-bottom: 10px;
 }
@@ -90,42 +325,27 @@ button {
 .date-controls {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
 
-  min-width: 0;
   gap: 8px;
 }
 
 .date-controls button,
 .date-controls input {
   min-height: 38px;
+
   padding: 7px 11px;
 
-  border: 1px solid #d1d5db;
+  border:
+    1px solid #d1d5db;
+
   border-radius: 6px;
 
   color: #1f2937;
   background: white;
 }
 
-.date-controls button:hover,
-.date-controls input:hover {
-  border-color: #94a3b8;
-}
-
-.date-controls button:focus-visible,
-.date-controls input:focus-visible {
-  outline: 2px solid #38bdf8;
-  outline-offset: 2px;
-}
-
-.date-controls input {
-  width: 155px;
-  max-width: 100%;
-}
-
 /* ========================================
-   Schedule section
+   Scrollable schedule
    ======================================== */
 
 .schedule-section {
@@ -133,56 +353,48 @@ button {
   min-width: 0;
 }
 
-/*
-  schedule-card 是横向滚动窗口。
-*/
-
 .schedule-card {
-  display: block;
-
   width: 100%;
-  min-width: 0;
   max-width: 100%;
 
   overflow-x: scroll;
   overflow-y: hidden;
 
-  border: 1px solid #cbd5e1;
+  border:
+    1px solid #cbd5e1;
+
   border-radius: 8px;
 
   background: white;
 
   scrollbar-width: auto;
-  scrollbar-color: #64748b #e5e7eb;
+  scrollbar-color:
+    #64748b #e5e7eb;
 
-  -webkit-overflow-scrolling: touch;
+  -webkit-overflow-scrolling:
+    touch;
 
-  overscroll-behavior-x: contain;
-  touch-action: pan-x pan-y;
+  overscroll-behavior-x:
+    contain;
 }
-
-/*
-  schedule 是宽于 Teams 窗口的内部画布。
-*/
 
 .schedule {
-  display: block;
+  width:
+    var(--schedule-width);
 
-  width: var(--schedule-width);
-  min-width: var(--schedule-width);
-  max-width: none;
+  min-width:
+    var(--schedule-width);
 }
-
-/* ========================================
-   Schedule grid
-   ======================================== */
 
 .schedule-header,
 .resource-row {
   display: grid;
 
-  width: var(--schedule-width);
-  min-width: var(--schedule-width);
+  width:
+    var(--schedule-width);
+
+  min-width:
+    var(--schedule-width);
 
   grid-template-columns:
     var(--resource-column-width)
@@ -195,10 +407,14 @@ button {
   left: 0;
   z-index: 20;
 
-  width: var(--resource-column-width);
-  min-width: var(--resource-column-width);
+  width:
+    var(--resource-column-width);
 
-  border-right: 1px solid #cbd5e1;
+  min-width:
+    var(--resource-column-width);
+
+  border-right:
+    1px solid #cbd5e1;
 
   background: #f8fafc;
 }
@@ -206,19 +422,25 @@ button {
 .corner-cell {
   height: 42px;
 
-  border-bottom: 1px solid #cbd5e1;
+  border-bottom:
+    1px solid #cbd5e1;
 }
 
 .timeline-header {
   position: relative;
 
-  width: var(--timeline-width);
-  min-width: var(--timeline-width);
+  width:
+    var(--timeline-width);
+
+  min-width:
+    var(--timeline-width);
+
   height: 42px;
 
   overflow: hidden;
 
-  border-bottom: 1px solid #cbd5e1;
+  border-bottom:
+    1px solid #cbd5e1;
 
   background: #f8fafc;
 }
@@ -228,25 +450,25 @@ button {
   top: 0;
 
   height: 100%;
+
   padding: 12px 4px;
 
-  border-left: 1px solid #dbe3ec;
+  border-left:
+    1px solid #dbe3ec;
 
   font-size: 11px;
   white-space: nowrap;
 
-  transform: translateX(-1px);
+  transform:
+    translateX(-1px);
 }
-
-/* ========================================
-   Equipment rows
-   ======================================== */
 
 .resource-name {
   display: flex;
   align-items: center;
 
   min-height: 60px;
+
   padding: 8px 12px;
 
   overflow: hidden;
@@ -263,23 +485,17 @@ button {
 .timeline-row {
   position: relative;
 
-  width: var(--timeline-width);
-  min-width: var(--timeline-width);
+  width:
+    var(--timeline-width);
+
+  min-width:
+    var(--timeline-width);
+
   min-height: 60px;
 
   overflow: hidden;
 
   cursor: crosshair;
-
-  /*
-    7 AM–11 PM，共16小时。
-
-    每小时：
-    100% ÷ 16 = 6.25%
-
-    每15分钟：
-    100% ÷ 64 = 1.5625%
-  */
 
   background-image:
     linear-gradient(
@@ -303,11 +519,12 @@ button {
 }
 
 .resource-row:not(:last-child) {
-  border-bottom: 1px solid #cbd5e1;
+  border-bottom:
+    1px solid #cbd5e1;
 }
 
 /* ========================================
-   Reservation blocks
+   Reservations
    ======================================== */
 
 .reservation {
@@ -316,7 +533,6 @@ button {
 
   height: 44px;
   min-width: 12px;
-  max-width: 100%;
 
   overflow: hidden;
 
@@ -329,43 +545,31 @@ button {
   background: #0369a1;
 
   text-align: left;
-  line-height: 1.15;
 
-  box-shadow: 0 1px 3px rgb(0 0 0 / 20%);
+  box-shadow:
+    0 1px 3px
+    rgb(0 0 0 / 20%);
 }
 
-.reservation:hover {
-  filter: brightness(0.92);
-}
-
-.reservation:focus-visible {
-  outline: 3px solid #7dd3fc;
-  outline-offset: 2px;
-}
-
-.reservation-title {
-  display: block;
-
-  overflow: hidden;
-
-  font-size: 12px;
-  font-weight: 700;
-
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
+.reservation-title,
 .reservation-details {
   display: block;
 
   overflow: hidden;
 
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.reservation-title {
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.reservation-details {
   margin-top: 2px;
 
   font-size: 10px;
-
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 /* ========================================
@@ -374,52 +578,37 @@ button {
 
 .schedule-scroll-controls {
   display: flex;
-  justify-content: space-between;
+  justify-content:
+    space-between;
   align-items: center;
 
-  width: 100%;
   gap: 10px;
 
   margin-top: 8px;
 
   color: #64748b;
+
   font-size: 12px;
 }
 
 .schedule-scroll-controls button {
-  flex: 0 0 auto;
-
   min-height: 32px;
+
   padding: 5px 10px;
 
-  border: 1px solid #cbd5e1;
+  border:
+    1px solid #cbd5e1;
+
   border-radius: 5px;
 
   color: #334155;
   background: white;
 }
 
-.schedule-scroll-controls button:hover {
-  border-color: #94a3b8;
-  background: #f8fafc;
-}
-
 .schedule-scroll-controls button:disabled {
   cursor: default;
-  opacity: 0.45;
+  opacity: 0.4;
 }
-
-.schedule-scroll-controls span {
-  overflow: hidden;
-
-  text-align: center;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-/* ========================================
-   Visible scrollbar
-   ======================================== */
 
 .schedule-card::-webkit-scrollbar {
   height: 16px;
@@ -434,16 +623,14 @@ button {
 
   background: #64748b;
 
-  border: 3px solid #e5e7eb;
+  border:
+    3px solid #e5e7eb;
+
   border-radius: 999px;
 }
 
-.schedule-card::-webkit-scrollbar-thumb:hover {
-  background: #475569;
-}
-
 /* ========================================
-   Status
+   Status and footer
    ======================================== */
 
 .status-message {
@@ -452,20 +639,23 @@ button {
   margin: 8px 0 0;
 
   color: #475569;
+
   font-size: 13px;
 }
 
-/* ========================================
-   Footer
-   ======================================== */
-
 .footer {
-  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
+
+  gap: 9px;
 
   margin-top: 18px;
   padding: 12px 0 4px;
 
-  border-top: 1px solid #dbe3ec;
+  border-top:
+    1px solid #dbe3ec;
 
   color: #64748b;
 
@@ -473,15 +663,36 @@ button {
   text-align: center;
 }
 
+.version-badge {
+  padding: 3px 7px;
+
+  border:
+    1px solid #cbd5e1;
+
+  border-radius: 999px;
+
+  color: #475569;
+  background: #f8fafc;
+
+  font-size: 10px;
+}
+
 /* ========================================
-   Dialog
+   Reservation dialog
    ======================================== */
 
 dialog {
-  width: min(500px, calc(100% - 30px));
-  max-height: calc(100vh - 40px);
+  width:
+    min(
+      500px,
+      calc(100% - 30px)
+    );
+
+  max-height:
+    calc(100vh - 40px);
 
   padding: 0;
+
   overflow-y: auto;
 
   border: 0;
@@ -489,11 +700,14 @@ dialog {
 
   background: white;
 
-  box-shadow: 0 20px 60px rgb(0 0 0 / 30%);
+  box-shadow:
+    0 20px 60px
+    rgb(0 0 0 / 30%);
 }
 
 dialog::backdrop {
-  background: rgb(15 23 42 / 50%);
+  background:
+    rgb(15 23 42 / 50%);
 }
 
 dialog form {
@@ -518,28 +732,17 @@ dialog input {
   margin-top: 6px;
   padding: 10px;
 
-  border: 1px solid #cbd5e1;
+  border:
+    1px solid #cbd5e1;
+
   border-radius: 6px;
-
-  color: #1f2937;
-  background: white;
-}
-
-dialog input:disabled {
-  color: #475569;
-  background: #f1f5f9;
-}
-
-dialog input:focus {
-  border-color: #0284c7;
-
-  outline: 2px solid #38bdf8;
-  outline-offset: 1px;
 }
 
 .time-inputs {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns:
+    1fr 1fr;
+
   gap: 14px;
 }
 
@@ -555,19 +758,12 @@ dialog input:focus {
 .dialog-buttons button {
   padding: 9px 16px;
 
-  border: 1px solid #cbd5e1;
+  border:
+    1px solid #cbd5e1;
+
   border-radius: 6px;
 
   background: white;
-}
-
-.dialog-buttons button:hover {
-  filter: brightness(0.96);
-}
-
-.dialog-buttons button:disabled {
-  cursor: default;
-  opacity: 0.55;
 }
 
 .button-spacer {
@@ -577,17 +773,21 @@ dialog input:focus {
 .primary-button {
   color: white;
 
-  border-color: #0369a1 !important;
+  border-color:
+    #0369a1 !important;
 
-  background: #0369a1 !important;
+  background:
+    #0369a1 !important;
 }
 
 .danger-button {
   color: white;
 
-  border-color: #b91c1c !important;
+  border-color:
+    #b91c1c !important;
 
-  background: #b91c1c !important;
+  background:
+    #b91c1c !important;
 }
 
 .hidden {
@@ -605,7 +805,7 @@ dialog input:focus {
 }
 
 /* ========================================
-   Narrow Teams view
+   Narrow Teams window
    ======================================== */
 
 @media (max-width: 800px) {
@@ -613,21 +813,17 @@ dialog input:focus {
     padding: 8px;
   }
 
+  .header {
+    align-items: center;
+  }
+
   .header h1 {
     font-size: 22px;
   }
 
-  .header p {
-    font-size: 13px;
-  }
+  .logout-button {
+    padding: 6px 8px;
 
-  .resource-name {
-    padding: 7px 9px;
-
-    font-size: 11px;
-  }
-
-  .hour-label {
     font-size: 10px;
   }
 
@@ -637,19 +833,5 @@ dialog input:focus {
 
   .time-inputs {
     grid-template-columns: 1fr;
-  }
-}
-
-@media (max-width: 500px) {
-  .dialog-buttons {
-    flex-wrap: wrap;
-  }
-
-  .button-spacer {
-    display: none;
-  }
-
-  .dialog-buttons button {
-    flex: 1;
   }
 }
