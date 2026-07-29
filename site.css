@@ -1490,17 +1490,12 @@ dialog select:focus {
   background: var(--color-surface);
 
   user-select: none;
+
+  /*
+    Prevent the browser from treating a drag as page
+    scrolling while editing availability.
+  */
   touch-action: none;
-}
-
-
-.availability-table.dragging {
-  cursor: crosshair;
-}
-
-.availability-table.dragging,
-.availability-table.dragging * {
-  user-select: none;
 }
 
 .slot-cell.editable {
@@ -1508,7 +1503,8 @@ dialog select:focus {
 
   transition:
     background-color 60ms linear,
-    outline-color 60ms linear;
+    outline-color 60ms linear,
+    box-shadow 60ms linear;
 }
 
 .slot-cell.editable:hover {
@@ -1519,6 +1515,38 @@ dialog select:focus {
 .slot-cell.editable:focus-visible {
   outline: 3px solid var(--color-focus);
   outline-offset: -3px;
+}
+
+.availability-table.dragging {
+  cursor: crosshair;
+}
+
+.availability-table.dragging,
+.availability-table.dragging * {
+  user-select: none;
+}
+
+.slot-cell.rectangle-preview {
+  z-index: 1;
+
+  box-shadow:
+    inset 0 0 0 2px
+    rgb(15 23 42 / 38%);
+}
+
+.slot-cell.status-green {
+  background:
+    var(--color-green);
+}
+
+.slot-cell.status-yellow {
+  background:
+    var(--color-yellow);
+}
+
+.slot-cell.status-red {
+  background:
+    var(--color-red);
 }
 
 /* =========================================================

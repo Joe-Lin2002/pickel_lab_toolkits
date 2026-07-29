@@ -126,7 +126,7 @@ const nameCancelButton =
   );
 
 /* =========================================================
-   State
+   Application state
    ========================================================= */
 
 let allSlots = [];
@@ -139,6 +139,10 @@ let selectedStatus = "green";
 
 let draftSlots =
   new Map();
+
+/* =========================================================
+   Rectangle drag state
+   ========================================================= */
 
 let isDragging = false;
 
@@ -173,7 +177,7 @@ async function initialize() {
    ========================================================= */
 
 function validateRequiredElements() {
-  const required = {
+  const requiredElements = {
     memberSelect,
     newMemberButton,
     editorControls,
@@ -189,8 +193,10 @@ function validateRequiredElements() {
     nameCancelButton,
   };
 
-  const missing =
-    Object.entries(required)
+  const missingElements =
+    Object.entries(
+      requiredElements
+    )
       .filter(
         ([, element]) =>
           !element
@@ -203,15 +209,17 @@ function validateRequiredElements() {
   if (
     colorButtons.length === 0
   ) {
-    missing.push(
+    missingElements.push(
       "colorButtons"
     );
   }
 
-  if (missing.length > 0) {
+  if (
+    missingElements.length > 0
+  ) {
     throw new Error(
       "Missing HTML elements: " +
-      missing.join(", ")
+      missingElements.join(", ")
     );
   }
 
@@ -234,6 +242,10 @@ function attachEventListeners() {
   memberSelect.addEventListener(
     "change",
     () => {
+      finishRectangleDrag(
+        false
+      );
+
       selectMember(
         memberSelect.value
       );
@@ -262,19 +274,21 @@ function attachEventListeners() {
       button.addEventListener(
         "click",
         () => {
-          const newStatus =
+          const status =
             button.dataset.status;
 
           if (
-            VALID_STATUSES.has(
-              newStatus
+            !VALID_STATUSES.has(
+              status
             )
           ) {
-            selectedStatus =
-              newStatus;
-
-            updateSelectedColorButton();
+            return;
           }
+
+          selectedStatus =
+            status;
+
+          updateSelectedColorButton();
         }
       );
     }
@@ -289,6 +303,13 @@ function attachEventListeners() {
     "click",
     saveAvailability
   );
+
+  /*
+    Pointer events support:
+    - mouse
+    - touch
+    - stylus
+  */
 
   tableElement.addEventListener(
     "pointerdown",
@@ -313,183 +334,29 @@ function attachEventListeners() {
     handleTablePointerCancel
   );
 
+  /*
+    Prevent the native drag operation from interfering
+    with rectangular selection.
+  */
+
+  tableElement.addEventListener(
+    "dragstart",
+    event => {
+      event.preventDefault();
+    }
+  );
+
   nameDialog.addEventListener(
     "click",
     event => {
       if (
-        event.target === nameDialog
+        event.target ===
+        nameDialog
       ) {
         nameDialog.close();
       }
     }
   );
-}
-function applyDragRectangle() {
-  if (
-    !dragStartCell ||
-    !dragCurrentCell ||
-    !dragOriginalSlots
-  ) {
-    return;
-  }
-
-  /*
-    Reset the draft to its state before the current drag.
-    The current rectangular preview is then applied again.
-  */
-
-  draftSlots =
-    new Map(
-      dragOriginalSlots
-    );
-
-  const minimumWeekday =
-    Math.min(
-      dragStartCell.weekday,
-      dragCurrentCell.weekday
-    );
-
-  const maximumWeekday =
-    Math.max(
-      dragStartCell.weekday,
-      dragCurrentCell.weekday
-    );
-
-  const minimumSlotIndex =
-    Math.min(
-      dragStartCell.slotIndex,
-      dragCurrentCell.slotIndex
-    );
-
-  const maximumSlotIndex =
-    Math.max(
-      dragStartCell.slotIndex,
-      dragCurrentCell.slotIndex
-    );
-
-  for (
-    let weekday =
-      minimumWeekday;
-    weekday <=
-      maximumWeekday;
-    weekday += 1
-  ) {
-    for (
-      let slotIndex =
-        minimumSlotIndex;
-      slotIndex <=
-        maximumSlotIndex;
-      slotIndex += 1
-    ) {
-      draftSlots.set(
-        slotKey(
-          weekday,
-          slotIndex
-        ),
-        selectedStatus
-      );
-    }
-  }
-
-  updateEditableCells();
-}
-
-function updateEditableCells() {
-  const cells =
-    tableElement.querySelectorAll(
-      ".slot-cell.editable"
-    );
-
-  cells.forEach(cell => {
-    const coordinates =
-      getCellCoordinates(cell);
-
-    if (!coordinates) {
-      return;
-    }
-
-    const status =
-      draftSlots.get(
-        slotKey(
-          coordinates.weekday,
-          coordinates.slotIndex
-        )
-      );
-
-    applyStatusClass(
-      cell,
-      status
-    );
-
-    cell.title =
-      [
-        `${formatSlotTime(coordinates.slotIndex)}–` +
-        `${formatSlotTime(coordinates.slotIndex + 1)}`,
-
-        status
-          ? statusLabel(status)
-          : "No response",
-      ].join("\n");
-  });
-}
-
-function getEditableSlotCell(
-  target
-) {
-  if (
-    !(target instanceof Element)
-  ) {
-    return null;
-  }
-
-  const cell =
-    target.closest(
-      ".slot-cell.editable"
-    );
-
-  if (
-    !cell ||
-    !tableElement.contains(cell)
-  ) {
-    return null;
-  }
-
-  return cell;
-}
-
-function getCellCoordinates(
-  cell
-) {
-  const weekday =
-    Number(
-      cell.dataset.weekday
-    );
-
-  const slotIndex =
-    Number(
-      cell.dataset.slotIndex
-    );
-
-  if (
-    !Number.isInteger(
-      weekday
-    ) ||
-    weekday < 1 ||
-    weekday > 5 ||
-    !Number.isInteger(
-      slotIndex
-    ) ||
-    slotIndex < 0 ||
-    slotIndex >=
-      SLOT_COUNT
-  ) {
-    return null;
-  }
-
-  return {
-    weekday,
-    slotIndex,
-  };
 }
 
 /* =========================================================
@@ -577,7 +444,9 @@ async function loadAvailability() {
       [
         ...new Set(
           members
-            .map(normalizeName)
+            .map(
+              normalizeName
+            )
             .filter(Boolean)
         ),
       ].sort(
@@ -610,9 +479,11 @@ async function loadAvailability() {
     );
 
     allSlots = [];
+
     members = [];
 
     updateMemberOptions();
+
     selectMember("");
 
     if (
@@ -682,6 +553,10 @@ function updateMemberOptions() {
 function selectMember(
   memberName
 ) {
+  finishRectangleDrag(
+    false
+  );
+
   currentMember =
     members.includes(
       memberName
@@ -700,38 +575,42 @@ function selectMember(
       of allSlots
     ) {
       if (
-        slot.person_name ===
+        slot.person_name !==
         currentMember
       ) {
-        const weekday =
-          Number(
-            slot.weekday
-          );
-
-        const slotIndex =
-          Number(
-            slot.slot_index
-          );
-
-        if (
-          weekday >= 1 &&
-          weekday <= 5 &&
-          slotIndex >= 0 &&
-          slotIndex <
-            SLOT_COUNT &&
-          VALID_STATUSES.has(
-            slot.status
-          )
-        ) {
-          draftSlots.set(
-            slotKey(
-              weekday,
-              slotIndex
-            ),
-            slot.status
-          );
-        }
+        continue;
       }
+
+      const weekday =
+        Number(
+          slot.weekday
+        );
+
+      const slotIndex =
+        Number(
+          slot.slot_index
+        );
+
+      if (
+        weekday < 1 ||
+        weekday > 5 ||
+        slotIndex < 0 ||
+        slotIndex >=
+          SLOT_COUNT ||
+        !VALID_STATUSES.has(
+          slot.status
+        )
+      ) {
+        continue;
+      }
+
+      draftSlots.set(
+        slotKey(
+          weekday,
+          slotIndex
+        ),
+        slot.status
+      );
     }
 
     editorControls.classList.remove(
@@ -739,8 +618,8 @@ function selectMember(
     );
 
     modeMessage.textContent =
-      `Editing availability for ${currentMember}.`;
-
+      `Editing availability for ${currentMember}. ` +
+      "Drag across the table to select a rectangular area.";
   } else {
     editorControls.classList.add(
       "hidden"
@@ -816,7 +695,7 @@ function handleNewMember(
           undefined,
           {
             sensitivity:
-              "accent",
+              "base",
           }
         ) === 0
     );
@@ -893,16 +772,21 @@ function renderTable() {
           "button"
         );
 
-      cell.type = "button";
+      cell.type =
+        "button";
 
       cell.className =
         "table-cell slot-cell";
 
       cell.dataset.weekday =
-        String(day.id);
+        String(
+          day.id
+        );
 
       cell.dataset.slotIndex =
-        String(slotIndex);
+        String(
+          slotIndex
+        );
 
       cell.setAttribute(
         "aria-label",
@@ -979,28 +863,25 @@ function renderEditableCell(
     status
   );
 
-  cell.title =
-    [
-      `${formatSlotTime(slotIndex)}–` +
-      `${formatSlotTime(slotIndex + 1)}`,
-
-      status
-        ? statusLabel(status)
-        : "No response",
-    ].join("\n");
+  updateCellAccessibility(
+    cell,
+    weekday,
+    slotIndex,
+    status
+  );
 
   /*
-    Pointer selection is handled through event delegation on
-    tableElement, so individual cells do not need separate
-    mouse or touch listeners.
+    Keyboard users can select one cell using Enter or Space.
   */
 
   cell.addEventListener(
     "keydown",
     event => {
       if (
-        event.key !== "Enter" &&
-        event.key !== " "
+        event.key !==
+          "Enter" &&
+        event.key !==
+          " "
       ) {
         return;
       }
@@ -1013,6 +894,487 @@ function renderEditableCell(
       );
 
       updateEditableCells();
+    }
+  );
+}
+
+/* =========================================================
+   Rectangle selection
+   ========================================================= */
+
+function handleTablePointerDown(
+  event
+) {
+  if (!currentMember) {
+    return;
+  }
+
+  if (
+    event.pointerType ===
+      "mouse" &&
+    event.button !== 0
+  ) {
+    return;
+  }
+
+  const cell =
+    getEditableSlotCell(
+      event.target
+    );
+
+  if (!cell) {
+    return;
+  }
+
+  const coordinates =
+    getCellCoordinates(
+      cell
+    );
+
+  if (!coordinates) {
+    return;
+  }
+
+  event.preventDefault();
+
+  isDragging = true;
+
+  dragPointerId =
+    event.pointerId;
+
+  dragStartCell =
+    coordinates;
+
+  dragCurrentCell =
+    coordinates;
+
+  /*
+    Preserve all availability values that existed before
+    this drag operation. Each preview is rebuilt from this
+    state so dragging backward correctly shrinks the area.
+  */
+
+  dragOriginalSlots =
+    new Map(
+      draftSlots
+    );
+
+  tableElement.classList.add(
+    "dragging"
+  );
+
+  try {
+    tableElement.setPointerCapture(
+      event.pointerId
+    );
+  } catch {
+    /*
+      Pointer capture may be unsupported in some embedded
+      browsers. Rectangle selection can still continue.
+    */
+  }
+
+  applyDragRectangle();
+}
+
+function handleTablePointerMove(
+  event
+) {
+  if (
+    !isDragging ||
+    event.pointerId !==
+      dragPointerId
+  ) {
+    return;
+  }
+
+  event.preventDefault();
+
+  /*
+    Pointer capture can cause event.target to remain the
+    original table element. elementFromPoint determines the
+    slot currently underneath the pointer.
+  */
+
+  const element =
+    document.elementFromPoint(
+      event.clientX,
+      event.clientY
+    );
+
+  const cell =
+    getEditableSlotCell(
+      element
+    );
+
+  if (!cell) {
+    handleDragAutoScroll(
+      event
+    );
+
+    return;
+  }
+
+  const coordinates =
+    getCellCoordinates(
+      cell
+    );
+
+  if (!coordinates) {
+    return;
+  }
+
+  if (
+    dragCurrentCell &&
+    dragCurrentCell.weekday ===
+      coordinates.weekday &&
+    dragCurrentCell.slotIndex ===
+      coordinates.slotIndex
+  ) {
+    handleDragAutoScroll(
+      event
+    );
+
+    return;
+  }
+
+  dragCurrentCell =
+    coordinates;
+
+  applyDragRectangle();
+
+  handleDragAutoScroll(
+    event
+  );
+}
+
+function handleTablePointerUp(
+  event
+) {
+  if (
+    !isDragging ||
+    event.pointerId !==
+      dragPointerId
+  ) {
+    return;
+  }
+
+  finishRectangleDrag(
+    false
+  );
+}
+
+function handleTablePointerCancel(
+  event
+) {
+  if (
+    !isDragging ||
+    event.pointerId !==
+      dragPointerId
+  ) {
+    return;
+  }
+
+  /*
+    Restore the availability state if the browser cancels
+    the pointer gesture unexpectedly.
+  */
+
+  finishRectangleDrag(
+    true
+  );
+}
+
+function applyDragRectangle() {
+  if (
+    !dragStartCell ||
+    !dragCurrentCell ||
+    !dragOriginalSlots
+  ) {
+    return;
+  }
+
+  /*
+    Reset the current draft before applying the updated
+    rectangular preview.
+  */
+
+  draftSlots =
+    new Map(
+      dragOriginalSlots
+    );
+
+  const minimumWeekday =
+    Math.min(
+      dragStartCell.weekday,
+      dragCurrentCell.weekday
+    );
+
+  const maximumWeekday =
+    Math.max(
+      dragStartCell.weekday,
+      dragCurrentCell.weekday
+    );
+
+  const minimumSlotIndex =
+    Math.min(
+      dragStartCell.slotIndex,
+      dragCurrentCell.slotIndex
+    );
+
+  const maximumSlotIndex =
+    Math.max(
+      dragStartCell.slotIndex,
+      dragCurrentCell.slotIndex
+    );
+
+  for (
+    let weekday =
+      minimumWeekday;
+    weekday <=
+      maximumWeekday;
+    weekday += 1
+  ) {
+    for (
+      let slotIndex =
+        minimumSlotIndex;
+      slotIndex <=
+        maximumSlotIndex;
+      slotIndex += 1
+    ) {
+      draftSlots.set(
+        slotKey(
+          weekday,
+          slotIndex
+        ),
+        selectedStatus
+      );
+    }
+  }
+
+  updateEditableCells();
+
+  updateRectanglePreview(
+    minimumWeekday,
+    maximumWeekday,
+    minimumSlotIndex,
+    maximumSlotIndex
+  );
+}
+
+function finishRectangleDrag(
+  restoreOriginal
+) {
+  if (!isDragging) {
+    return;
+  }
+
+  if (
+    restoreOriginal &&
+    dragOriginalSlots
+  ) {
+    draftSlots =
+      new Map(
+        dragOriginalSlots
+      );
+
+    updateEditableCells();
+  }
+
+  tableElement.classList.remove(
+    "dragging"
+  );
+
+  tableElement
+    .querySelectorAll(
+      ".rectangle-preview"
+    )
+    .forEach(
+      cell => {
+        cell.classList.remove(
+          "rectangle-preview"
+        );
+      }
+    );
+
+  if (
+    dragPointerId !== null
+  ) {
+    try {
+      tableElement.releasePointerCapture(
+        dragPointerId
+      );
+    } catch {
+      /*
+        Pointer capture may already have been released.
+      */
+    }
+  }
+
+  isDragging = false;
+
+  dragPointerId = null;
+
+  dragStartCell = null;
+
+  dragCurrentCell = null;
+
+  dragOriginalSlots = null;
+}
+
+function updateRectanglePreview(
+  minimumWeekday,
+  maximumWeekday,
+  minimumSlotIndex,
+  maximumSlotIndex
+) {
+  const cells =
+    tableElement.querySelectorAll(
+      ".slot-cell.editable"
+    );
+
+  cells.forEach(
+    cell => {
+      const coordinates =
+        getCellCoordinates(
+          cell
+        );
+
+      if (!coordinates) {
+        return;
+      }
+
+      const insideRectangle =
+        coordinates.weekday >=
+          minimumWeekday &&
+        coordinates.weekday <=
+          maximumWeekday &&
+        coordinates.slotIndex >=
+          minimumSlotIndex &&
+        coordinates.slotIndex <=
+          maximumSlotIndex;
+
+      cell.classList.toggle(
+        "rectangle-preview",
+        insideRectangle
+      );
+    }
+  );
+}
+
+/* =========================================================
+   Drag auto-scroll
+
+   Useful on phones when the table is wider than the screen.
+   ========================================================= */
+
+function handleDragAutoScroll(
+  event
+) {
+  const scrollContainer =
+    tableElement.closest(
+      ".availability-card"
+    );
+
+  if (!scrollContainer) {
+    return;
+  }
+
+  const rectangle =
+    scrollContainer
+      .getBoundingClientRect();
+
+  const edgeThreshold = 45;
+
+  const maximumSpeed = 18;
+
+  if (
+    event.clientX <
+    rectangle.left +
+      edgeThreshold
+  ) {
+    const distance =
+      rectangle.left +
+      edgeThreshold -
+      event.clientX;
+
+    const speed =
+      Math.min(
+        maximumSpeed,
+        Math.max(
+          4,
+          distance / 3
+        )
+      );
+
+    scrollContainer.scrollLeft -=
+      speed;
+  } else if (
+    event.clientX >
+    rectangle.right -
+      edgeThreshold
+  ) {
+    const distance =
+      event.clientX -
+      (
+        rectangle.right -
+        edgeThreshold
+      );
+
+    const speed =
+      Math.min(
+        maximumSpeed,
+        Math.max(
+          4,
+          distance / 3
+        )
+      );
+
+    scrollContainer.scrollLeft +=
+      speed;
+  }
+}
+
+/* =========================================================
+   Editable-cell updates
+   ========================================================= */
+
+function updateEditableCells() {
+  const cells =
+    tableElement.querySelectorAll(
+      ".slot-cell.editable"
+    );
+
+  cells.forEach(
+    cell => {
+      const coordinates =
+        getCellCoordinates(
+          cell
+        );
+
+      if (!coordinates) {
+        return;
+      }
+
+      const status =
+        draftSlots.get(
+          slotKey(
+            coordinates.weekday,
+            coordinates.slotIndex
+          )
+        );
+
+      applyStatusClass(
+        cell,
+        status
+      );
+
+      updateCellAccessibility(
+        cell,
+        coordinates.weekday,
+        coordinates.slotIndex,
+        status
+      );
     }
   );
 }
@@ -1038,11 +1400,109 @@ function applyStatusClass(
   }
 }
 
+function updateCellAccessibility(
+  cell,
+  weekday,
+  slotIndex,
+  status
+) {
+  const day =
+    DAYS.find(
+      item =>
+        item.id ===
+        weekday
+    );
+
+  const statusText =
+    status
+      ? statusLabel(status)
+      : "No response";
+
+  cell.title =
+    [
+      `${formatSlotTime(slotIndex)}–${formatSlotTime(slotIndex + 1)}`,
+      statusText,
+    ].join("\n");
+
+  cell.setAttribute(
+    "aria-label",
+    `${day?.name ?? "Day"}, ` +
+    `${formatSlotTime(slotIndex)} to ` +
+    `${formatSlotTime(slotIndex + 1)}, ` +
+    statusText
+  );
+
+  cell.setAttribute(
+    "aria-pressed",
+    status
+      ? "true"
+      : "false"
+  );
+}
+
+function getEditableSlotCell(
+  target
+) {
+  if (
+    !(target instanceof Element)
+  ) {
+    return null;
+  }
+
+  const cell =
+    target.closest(
+      ".slot-cell.editable"
+    );
+
+  if (
+    !cell ||
+    !tableElement.contains(
+      cell
+    )
+  ) {
+    return null;
+  }
+
+  return cell;
+}
+
+function getCellCoordinates(
+  cell
+) {
+  const weekday =
+    Number(
+      cell.dataset.weekday
+    );
+
+  const slotIndex =
+    Number(
+      cell.dataset.slotIndex
+    );
+
+  if (
+    !Number.isInteger(
+      weekday
+    ) ||
+    weekday < 1 ||
+    weekday > 5 ||
+    !Number.isInteger(
+      slotIndex
+    ) ||
+    slotIndex < 0 ||
+    slotIndex >=
+      SLOT_COUNT
+  ) {
+    return null;
+  }
+
+  return {
+    weekday,
+    slotIndex,
+  };
+}
+
 /* =========================================================
    Aggregate cells
-
-   The colors are displayed proportionally, similar to
-   When2Meet-style combined availability.
    ========================================================= */
 
 function renderAggregateCell(
@@ -1069,19 +1529,21 @@ function renderAggregateCell(
     if (
       Number(
         slot.weekday
-      ) === weekday &&
+      ) !== weekday ||
       Number(
         slot.slot_index
-      ) === slotIndex &&
-      VALID_STATUSES.has(
+      ) !== slotIndex ||
+      !VALID_STATUSES.has(
         slot.status
       )
     ) {
-      responsesByMember.set(
-        slot.person_name,
-        slot.status
-      );
+      continue;
     }
+
+    responsesByMember.set(
+      slot.person_name,
+      slot.status
+    );
   }
 
   for (
@@ -1183,16 +1645,18 @@ function renderAggregateCell(
 function updateSelectedColorButton() {
   colorButtons.forEach(
     button => {
+      const isSelected =
+        button.dataset.status ===
+        selectedStatus;
+
       button.classList.toggle(
         "selected",
-        button.dataset.status ===
-          selectedStatus
+        isSelected
       );
 
       button.setAttribute(
         "aria-pressed",
-        button.dataset.status ===
-          selectedStatus
+        isSelected
           ? "true"
           : "false"
       );
@@ -1204,6 +1668,10 @@ function clearCurrentAvailability() {
   if (!currentMember) {
     return;
   }
+
+  finishRectangleDrag(
+    false
+  );
 
   draftSlots.clear();
 
@@ -1222,6 +1690,10 @@ async function saveAvailability() {
   if (!currentMember) {
     return;
   }
+
+  finishRectangleDrag(
+    false
+  );
 
   const slots = [];
 
