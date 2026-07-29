@@ -1,0 +1,1833 @@
+/* =========================================================
+   Pickel Lab shared website styles
+   Version 0.3
+   July 29, 2026
+   ========================================================= */
+
+:root {
+  font-family:
+    Arial,
+    Helvetica,
+    sans-serif;
+
+  color: #1f2937;
+  background: #f3f4f6;
+
+  color-scheme: light;
+
+  /* Shared colors */
+
+  --color-background: #f3f4f6;
+  --color-surface: #ffffff;
+  --color-surface-soft: #f8fafc;
+
+  --color-text: #1f2937;
+  --color-text-strong: #0f172a;
+  --color-text-muted: #64748b;
+  --color-text-light: #94a3b8;
+
+  --color-border: #cbd5e1;
+  --color-border-light: #dbe3ec;
+
+  --color-primary: #0369a1;
+  --color-primary-hover: #075985;
+  --color-primary-light: #e0f2fe;
+  --color-focus: #38bdf8;
+
+  --color-danger: #b91c1c;
+  --color-danger-hover: #991b1b;
+  --color-danger-light: #fef2f2;
+
+  --color-green: #22c55e;
+  --color-green-dark: #16a34a;
+
+  --color-yellow: #facc15;
+  --color-yellow-border: #eab308;
+
+  --color-red: #ef4444;
+  --color-red-dark: #dc2626;
+
+  /* Shared dimensions */
+
+  --page-padding: 50px;
+  --content-max-width: 1500px;
+
+  --radius-small: 6px;
+  --radius-medium: 8px;
+  --radius-large: 14px;
+
+  --shadow-card:
+    0 20px 60px
+    rgb(15 23 42 / 14%);
+
+  /* Equipment schedule */
+
+  --resource-column-width: 145px;
+  --timeline-width: 1312px;
+  --schedule-width: 1457px;
+
+  /* Weekly availability */
+
+  --time-column-width: 95px;
+}
+
+/* =========================================================
+   Global reset
+   ========================================================= */
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  width: 100%;
+  min-width: 0;
+  min-height: 100%;
+  margin: 0;
+}
+
+html {
+  background: var(--color-background);
+}
+
+body {
+  color: var(--color-text);
+  background: var(--color-background);
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+a {
+  color: inherit;
+}
+
+img {
+  max-width: 100%;
+}
+
+.hidden {
+  display: none !important;
+}
+
+/* Protected pages remain hidden until auth succeeds */
+
+html.protected-page body {
+  visibility: hidden;
+}
+
+html.protected-page.authenticated body {
+  visibility: visible;
+}
+
+/* =========================================================
+   Shared page layout
+   ========================================================= */
+
+.app {
+  width: 100%;
+  min-width: 0;
+  max-width: var(--content-max-width);
+
+  margin: 0 auto;
+  padding: var(--page-padding);
+}
+
+.app-locked,
+.app-hidden {
+  display: none;
+}
+
+/* =========================================================
+   Shared headings
+   ========================================================= */
+
+h1,
+h2,
+h3 {
+  color: var(--color-text-strong);
+}
+
+.header h1,
+.page-header h1 {
+  margin: 0;
+
+  color: var(--color-text);
+
+  font-size: 28px;
+  line-height: 1.2;
+}
+
+.header p,
+.page-header p {
+  margin: 4px 0 0;
+
+  color: var(--color-text-muted);
+
+  font-size: 14px;
+}
+
+/* =========================================================
+   Shared feature-page headers
+   ========================================================= */
+
+.header,
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+
+  width: 100%;
+  min-width: 0;
+
+  gap: 20px;
+
+  margin-bottom: 14px;
+}
+
+.header > div:first-child,
+.page-header > div:first-child {
+  min-width: 0;
+}
+
+.header-actions,
+.page-links {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  flex-wrap: wrap;
+
+  min-width: 0;
+
+  gap: 8px;
+}
+
+/* =========================================================
+   Shared links styled as buttons
+   ========================================================= */
+
+.header-link,
+.schedule-link,
+.availability-link {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+
+  flex: 0 0 auto;
+
+  min-height: 34px;
+  padding: 7px 11px;
+
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-small);
+
+  color: #334155;
+  background: var(--color-surface);
+
+  font-size: 12px;
+  line-height: 1.2;
+  text-align: center;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.header-link:hover,
+.schedule-link:hover,
+.availability-link:hover {
+  border-color: #94a3b8;
+  background: var(--color-surface-soft);
+}
+
+.header-link:focus-visible,
+.schedule-link:focus-visible,
+.availability-link:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+/* =========================================================
+   Shared form buttons
+   ========================================================= */
+
+.primary-button,
+.save-button,
+.login-button,
+.access-submit {
+  color: white !important;
+
+  border-color: var(--color-primary) !important;
+  background: var(--color-primary) !important;
+}
+
+.primary-button:hover,
+.save-button:hover,
+.login-button:hover,
+.access-submit:hover {
+  background: var(--color-primary-hover) !important;
+}
+
+.danger-button {
+  color: white !important;
+
+  border-color: var(--color-danger) !important;
+  background: var(--color-danger) !important;
+}
+
+.danger-button:hover {
+  background: var(--color-danger-hover) !important;
+}
+
+/* =========================================================
+   Shared footer
+   ========================================================= */
+
+.footer {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
+
+  width: 100%;
+
+  gap: 8px;
+
+  margin-top: 18px;
+  padding: 12px 0 4px;
+
+  border-top: 1px solid var(--color-border-light);
+
+  color: var(--color-text-muted);
+
+  font-size: 12px;
+  text-align: center;
+}
+
+.version-badge {
+  padding: 3px 7px;
+
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+
+  color: #475569;
+  background: var(--color-surface-soft);
+
+  font-size: 10px;
+}
+
+/* =========================================================
+   Shared status messages
+   ========================================================= */
+
+.status-message {
+  min-height: 22px;
+
+  margin: 8px 0 0;
+
+  color: #475569;
+
+  font-size: 13px;
+}
+
+.form-error,
+.login-error,
+.access-error {
+  min-height: 20px;
+
+  color: var(--color-danger);
+
+  font-size: 13px;
+}
+
+/* =========================================================
+   Shared dialogs
+   ========================================================= */
+
+dialog {
+  width:
+    min(
+      500px,
+      calc(100% - 30px)
+    );
+
+  max-height:
+    calc(100vh - 40px);
+
+  padding: 0;
+
+  overflow-y: auto;
+
+  border: 0;
+  border-radius: 10px;
+
+  color: var(--color-text);
+  background: var(--color-surface);
+
+  box-shadow:
+    0 20px 60px
+    rgb(15 23 42 / 30%);
+}
+
+dialog::backdrop {
+  background:
+    rgb(15 23 42 / 50%);
+}
+
+dialog form {
+  padding: 24px;
+}
+
+dialog h2 {
+  margin: 0 0 20px;
+
+  color: var(--color-text);
+}
+
+dialog label {
+  display: block;
+
+  margin-bottom: 16px;
+
+  color: #334155;
+
+  font-weight: 600;
+}
+
+dialog input,
+dialog select {
+  width: 100%;
+
+  margin-top: 6px;
+  padding: 10px;
+
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-small);
+
+  color: var(--color-text);
+  background: var(--color-surface);
+}
+
+dialog input:disabled {
+  color: #475569;
+  background: #f1f5f9;
+}
+
+dialog input:focus,
+dialog select:focus {
+  border-color: #0284c7;
+
+  outline: 2px solid var(--color-focus);
+  outline-offset: 1px;
+}
+
+.dialog-buttons {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  flex-wrap: wrap;
+
+  gap: 10px;
+
+  margin-top: 20px;
+}
+
+.dialog-buttons button {
+  min-height: 38px;
+  padding: 8px 14px;
+
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-small);
+
+  color: #334155;
+  background: var(--color-surface);
+}
+
+.dialog-buttons button:hover {
+  border-color: #94a3b8;
+  background: var(--color-surface-soft);
+}
+
+.button-spacer {
+  flex: 1;
+}
+
+.time-inputs {
+  display: grid;
+
+  grid-template-columns:
+    1fr 1fr;
+
+  gap: 14px;
+}
+
+/* =========================================================
+   Homepage: shared background
+   ========================================================= */
+
+.home-page {
+  min-height: 100vh;
+
+  background:
+    linear-gradient(
+      145deg,
+      #e0f2fe 0%,
+      #f8fafc 48%,
+      #e2e8f0 100%
+    );
+}
+
+/* =========================================================
+   Homepage login view
+   ========================================================= */
+
+.login-view {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  min-height: 100vh;
+  padding: 30px;
+}
+
+.login-card,
+.access-panel {
+  width: min(430px, 100%);
+
+  padding: 34px;
+
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+
+  background:
+    rgb(255 255 255 / 96%);
+
+  box-shadow: var(--shadow-card);
+}
+
+.lab-mark {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  width: 64px;
+  height: 64px;
+
+  margin: 0 auto 20px;
+
+  border-radius: var(--radius-large);
+
+  color: white;
+  background: var(--color-primary);
+
+  font-size: 21px;
+  font-weight: 700;
+
+  box-shadow:
+    0 10px 25px
+    rgb(3 105 161 / 24%);
+}
+
+.login-card h1,
+.access-panel h1 {
+  margin: 0;
+
+  color: var(--color-text-strong);
+
+  font-size: 34px;
+  text-align: center;
+}
+
+.login-description,
+.access-description {
+  margin: 12px 0 26px;
+
+  color: var(--color-text-muted);
+
+  line-height: 1.5;
+  text-align: center;
+}
+
+.login-card label,
+.access-panel label {
+  display: block;
+
+  margin-bottom: 7px;
+
+  color: #334155;
+
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.password-field {
+  position: relative;
+}
+
+.password-field input {
+  width: 100%;
+  min-height: 46px;
+
+  padding:
+    10px 68px
+    10px 12px;
+
+  border: 1px solid var(--color-border);
+  border-radius: 7px;
+
+  color: var(--color-text-strong);
+  background: var(--color-surface);
+}
+
+.password-field input:focus {
+  border-color: #0284c7;
+
+  outline: 2px solid var(--color-focus);
+  outline-offset: 1px;
+}
+
+.password-toggle {
+  position: absolute;
+  top: 50%;
+  right: 7px;
+
+  padding: 6px 9px;
+
+  border: 0;
+  border-radius: 5px;
+
+  color: var(--color-primary);
+  background: transparent;
+
+  font-size: 12px;
+
+  transform: translateY(-50%);
+}
+
+.password-toggle:hover {
+  background: var(--color-primary-light);
+}
+
+.login-error,
+.access-error {
+  margin: 10px 0;
+}
+
+.login-button,
+.access-submit {
+  width: 100%;
+  min-height: 46px;
+
+  border: 0;
+  border-radius: 7px;
+
+  font-weight: 600;
+}
+
+.login-button:disabled,
+.access-submit:disabled,
+.password-toggle:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.cookie-note,
+.remember-note {
+  margin: 15px 0 0;
+
+  color: var(--color-text-light);
+
+  font-size: 11px;
+  text-align: center;
+}
+
+/* =========================================================
+   Homepage authenticated view
+   ========================================================= */
+
+.home-view {
+  width: min(900px, 100%);
+
+  margin: 0 auto;
+  padding: 50px;
+}
+
+.home-card {
+  padding: 46px;
+
+  border: 1px solid var(--color-border);
+  border-radius: 18px;
+
+  background:
+    rgb(255 255 255 / 96%);
+
+  box-shadow: var(--shadow-card);
+}
+
+.home-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+
+  gap: 20px;
+
+  margin-bottom: 38px;
+}
+
+.home-lab-mark {
+  width: 58px;
+  height: 58px;
+
+  margin: 0 0 16px;
+
+  font-size: 19px;
+}
+
+.home-header h1 {
+  margin: 0;
+
+  color: var(--color-text-strong);
+
+  font-size: clamp(36px, 6vw, 52px);
+  line-height: 1.1;
+}
+
+.home-header p {
+  margin: 10px 0 0;
+
+  color: var(--color-text-muted);
+
+  font-size: 16px;
+}
+
+.logout-button {
+  flex: 0 0 auto;
+
+  padding: 8px 12px;
+
+  border: 1px solid var(--color-border);
+  border-radius: 7px;
+
+  color: #475569;
+  background: var(--color-surface);
+
+  font-size: 12px;
+}
+
+.logout-button:hover {
+  color: var(--color-danger-hover);
+  border-color: #fca5a5;
+  background: var(--color-danger-light);
+}
+
+/* =========================================================
+   Homepage tool cards
+   ========================================================= */
+
+.tool-grid,
+.navigation {
+  display: grid;
+
+  grid-template-columns:
+    repeat(2, minmax(0, 1fr));
+
+  gap: 18px;
+}
+
+.tool-card,
+.navigation-card {
+  display: flex;
+  flex-direction: column;
+
+  min-height: 240px;
+  padding: 25px;
+
+  border: 1px solid var(--color-border);
+  border-radius: 13px;
+
+  color: #1e293b;
+  background: var(--color-surface);
+
+  text-align: left;
+  text-decoration: none;
+
+  transition:
+    transform 150ms ease,
+    border-color 150ms ease,
+    box-shadow 150ms ease;
+}
+
+.tool-card:hover,
+.navigation-card:hover {
+  border-color: #0284c7;
+
+  transform: translateY(-3px);
+
+  box-shadow:
+    0 14px 30px
+    rgb(15 23 42 / 12%);
+}
+
+.tool-card:focus-visible,
+.navigation-card:focus-visible {
+  outline: 3px solid var(--color-focus);
+  outline-offset: 3px;
+}
+
+.tool-icon,
+.card-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  width: 48px;
+  height: 48px;
+
+  border-radius: 10px;
+
+  color: var(--color-primary);
+  background: var(--color-primary-light);
+
+  font-size: 23px;
+}
+
+.tool-content {
+  flex: 1;
+}
+
+.tool-card h2,
+.navigation-card h2 {
+  margin: 22px 0 8px;
+
+  color: var(--color-text-strong);
+
+  font-size: 21px;
+}
+
+.tool-card p,
+.navigation-card p {
+  margin: 0;
+
+  color: var(--color-text-muted);
+
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.tool-link,
+.open-label {
+  display: inline-flex;
+
+  margin-top: auto;
+  padding-top: 24px;
+
+  color: var(--color-primary);
+
+  font-size: 13px;
+  font-weight: 700;
+}
+
+/* =========================================================
+   Equipment schedule: toolbar
+   ========================================================= */
+
+.schedule-toolbar {
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+
+  width: 100%;
+  min-width: 0;
+
+  margin-bottom: 10px;
+}
+
+.date-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+
+  min-width: 0;
+
+  gap: 8px;
+}
+
+.date-controls button,
+.date-controls input {
+  min-height: 38px;
+  padding: 7px 11px;
+
+  border: 1px solid #d1d5db;
+  border-radius: var(--radius-small);
+
+  color: var(--color-text);
+  background: var(--color-surface);
+}
+
+.date-controls button:hover,
+.date-controls input:hover {
+  border-color: #94a3b8;
+}
+
+.date-controls button:focus-visible,
+.date-controls input:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+.date-controls input {
+  width: 155px;
+  max-width: 100%;
+}
+
+/* =========================================================
+   Equipment schedule: scroll container
+   ========================================================= */
+
+.schedule-section {
+  width: 100%;
+  min-width: 0;
+}
+
+.schedule-card {
+  display: block;
+
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+
+  overflow-x: scroll;
+  overflow-y: hidden;
+
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-medium);
+
+  background: var(--color-surface);
+
+  scrollbar-width: auto;
+  scrollbar-color:
+    #64748b #e5e7eb;
+
+  -webkit-overflow-scrolling: touch;
+
+  overscroll-behavior-x: contain;
+  touch-action: pan-x pan-y;
+}
+
+.schedule {
+  display: block;
+
+  width: var(--schedule-width);
+  min-width: var(--schedule-width);
+  max-width: none;
+}
+
+.schedule-header,
+.resource-row {
+  display: grid;
+
+  width: var(--schedule-width);
+  min-width: var(--schedule-width);
+
+  grid-template-columns:
+    var(--resource-column-width)
+    var(--timeline-width);
+}
+
+.corner-cell,
+.resource-name {
+  position: sticky;
+  left: 0;
+  z-index: 20;
+
+  width: var(--resource-column-width);
+  min-width: var(--resource-column-width);
+
+  border-right: 1px solid var(--color-border);
+
+  background: var(--color-surface-soft);
+}
+
+.corner-cell {
+  height: 42px;
+
+  border-bottom: 1px solid var(--color-border);
+}
+
+.timeline-header {
+  position: relative;
+
+  width: var(--timeline-width);
+  min-width: var(--timeline-width);
+  height: 42px;
+
+  overflow: hidden;
+
+  border-bottom: 1px solid var(--color-border);
+
+  background: var(--color-surface-soft);
+}
+
+.hour-label {
+  position: absolute;
+  top: 0;
+
+  height: 100%;
+  padding: 12px 4px;
+
+  border-left: 1px solid var(--color-border-light);
+
+  font-size: 11px;
+  white-space: nowrap;
+
+  transform: translateX(-1px);
+}
+
+.resource-name {
+  display: flex;
+  align-items: center;
+
+  min-height: 60px;
+  padding: 8px 12px;
+
+  overflow: hidden;
+
+  color: var(--color-primary);
+
+  font-size: 13px;
+  font-weight: 600;
+
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.timeline-row {
+  position: relative;
+
+  width: var(--timeline-width);
+  min-width: var(--timeline-width);
+  min-height: 60px;
+
+  overflow: hidden;
+
+  cursor: crosshair;
+
+  background-image:
+    linear-gradient(
+      to right,
+      var(--color-border-light) 1px,
+      transparent 1px
+    ),
+    linear-gradient(
+      to right,
+      #edf2f7 1px,
+      transparent 1px
+    );
+
+  /*
+    7 AM–11 PM = 16 hours.
+    6.25% per hour.
+    1.5625% per 15 minutes.
+  */
+
+  background-size:
+    6.25% 100%,
+    1.5625% 100%;
+}
+
+.timeline-row:hover {
+  background-color: #f8fbff;
+}
+
+.resource-row:not(:last-child) {
+  border-bottom: 1px solid var(--color-border);
+}
+
+/* =========================================================
+   Equipment reservations
+   ========================================================= */
+
+.reservation {
+  position: absolute;
+  top: 8px;
+
+  height: 44px;
+  min-width: 12px;
+  max-width: 100%;
+
+  overflow: hidden;
+
+  padding: 5px 7px;
+
+  border: 0;
+  border-radius: 5px;
+
+  color: white;
+  background: var(--color-primary);
+
+  text-align: left;
+  line-height: 1.15;
+
+  box-shadow:
+    0 1px 3px
+    rgb(0 0 0 / 20%);
+}
+
+.reservation:hover {
+  filter: brightness(0.92);
+}
+
+.reservation:focus-visible {
+  outline: 3px solid #7dd3fc;
+  outline-offset: 2px;
+}
+
+.reservation-title,
+.reservation-details {
+  display: block;
+
+  overflow: hidden;
+
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.reservation-title {
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.reservation-details {
+  margin-top: 2px;
+
+  font-size: 10px;
+}
+
+/* =========================================================
+   Equipment scroll controls
+   ========================================================= */
+
+.schedule-scroll-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+
+  width: 100%;
+
+  gap: 10px;
+
+  margin-top: 8px;
+
+  color: var(--color-text-muted);
+
+  font-size: 12px;
+}
+
+.schedule-scroll-controls button {
+  flex: 0 0 auto;
+
+  min-height: 32px;
+  padding: 5px 10px;
+
+  border: 1px solid var(--color-border);
+  border-radius: 5px;
+
+  color: #334155;
+  background: var(--color-surface);
+}
+
+.schedule-scroll-controls button:hover {
+  border-color: #94a3b8;
+  background: var(--color-surface-soft);
+}
+
+.schedule-scroll-controls span {
+  overflow: hidden;
+
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.schedule-card::-webkit-scrollbar,
+.availability-card::-webkit-scrollbar {
+  height: 16px;
+}
+
+.schedule-card::-webkit-scrollbar-track,
+.availability-card::-webkit-scrollbar-track {
+  background: #e5e7eb;
+}
+
+.schedule-card::-webkit-scrollbar-thumb,
+.availability-card::-webkit-scrollbar-thumb {
+  min-width: 60px;
+
+  background: #64748b;
+
+  border: 3px solid #e5e7eb;
+  border-radius: 999px;
+}
+
+.schedule-card::-webkit-scrollbar-thumb:hover,
+.availability-card::-webkit-scrollbar-thumb:hover {
+  background: #475569;
+}
+
+/* =========================================================
+   Weekly availability: controls
+   ========================================================= */
+
+.controls-card {
+  width: 100%;
+  min-width: 0;
+
+  padding: 14px;
+
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-medium);
+
+  background: var(--color-surface);
+}
+
+.member-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+
+  min-width: 0;
+
+  gap: 8px;
+}
+
+.member-controls label,
+.control-label {
+  color: #334155;
+
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.member-controls select {
+  min-width: 190px;
+  min-height: 38px;
+
+  padding: 7px 10px;
+
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-small);
+
+  color: var(--color-text);
+  background: var(--color-surface);
+}
+
+.member-controls button,
+.editor-controls button {
+  min-height: 38px;
+  padding: 7px 11px;
+
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-small);
+
+  color: #334155;
+  background: var(--color-surface);
+}
+
+.member-controls button:hover,
+.editor-controls button:hover {
+  border-color: #94a3b8;
+  background: var(--color-surface-soft);
+}
+
+.member-controls select:focus-visible,
+.member-controls button:focus-visible,
+.editor-controls button:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+.editor-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+
+  min-width: 0;
+
+  gap: 8px;
+
+  margin-top: 14px;
+  padding-top: 14px;
+
+  border-top: 1px solid #e2e8f0;
+}
+
+.color-button {
+  border-width: 2px !important;
+}
+
+.green-button {
+  border-color: var(--color-green) !important;
+}
+
+.yellow-button {
+  border-color: var(--color-yellow-border) !important;
+}
+
+.red-button {
+  border-color: var(--color-red) !important;
+}
+
+.color-button.selected {
+  color: white;
+}
+
+.green-button.selected {
+  background: var(--color-green-dark);
+}
+
+.yellow-button.selected {
+  color: #422006;
+  background: var(--color-yellow);
+}
+
+.red-button.selected {
+  background: var(--color-red-dark);
+}
+
+.clear-button {
+  margin-left: auto;
+
+  color: #475569;
+}
+
+.mode-message {
+  margin: 12px 0 0;
+
+  color: var(--color-text-muted);
+
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+/* =========================================================
+   Weekly availability: legend
+   ========================================================= */
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+
+  gap: 15px;
+
+  margin: 12px 0;
+
+  color: #475569;
+
+  font-size: 12px;
+}
+
+.legend > span {
+  display: inline-flex;
+  align-items: center;
+
+  gap: 5px;
+}
+
+.legend-color {
+  display: inline-block;
+
+  width: 14px;
+  height: 14px;
+
+  border: 1px solid var(--color-border);
+  border-radius: 3px;
+}
+
+.legend-color.green {
+  background: var(--color-green);
+}
+
+.legend-color.yellow {
+  background: var(--color-yellow);
+}
+
+.legend-color.red {
+  background: var(--color-red);
+}
+
+.legend-color.empty {
+  background: var(--color-surface);
+}
+
+/* =========================================================
+   Weekly availability table
+   ========================================================= */
+
+.availability-card {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+
+  overflow-x: auto;
+  overflow-y: visible;
+
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-medium);
+
+  background: var(--color-surface);
+
+  scrollbar-width: auto;
+  scrollbar-color:
+    #64748b #e5e7eb;
+
+  -webkit-overflow-scrolling: touch;
+
+  overscroll-behavior-x: contain;
+}
+
+.availability-table {
+  display: grid;
+
+  width: 100%;
+  min-width: 760px;
+
+  grid-template-columns:
+    var(--time-column-width)
+    repeat(5, minmax(0, 1fr));
+}
+
+.table-cell {
+  min-width: 0;
+  min-height: 40px;
+
+  border-right: 1px solid var(--color-border-light);
+  border-bottom: 1px solid var(--color-border-light);
+}
+
+.availability-table > .table-cell:nth-child(6n) {
+  border-right: 0;
+}
+
+.header-cell {
+  position: sticky;
+  top: 0;
+  z-index: 4;
+
+  display: flex;
+  justify-content: center;
+  align-items: center;
+
+  min-height: 44px;
+  padding: 8px;
+
+  color: #334155;
+  background: var(--color-surface-soft);
+
+  font-size: 13px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.time-cell {
+  position: sticky;
+  left: 0;
+  z-index: 3;
+
+  display: flex;
+  justify-content: center;
+  align-items: center;
+
+  padding: 6px;
+
+  color: #475569;
+  background: var(--color-surface-soft);
+
+  font-size: 11px;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.availability-table .corner-cell {
+  left: 0;
+  z-index: 5;
+
+  width: auto;
+  min-width: 0;
+
+  border-right: 1px solid var(--color-border-light);
+}
+
+.slot-cell {
+  position: relative;
+
+  display: block;
+
+  width: 100%;
+  min-width: 0;
+  min-height: 40px;
+
+  padding: 0;
+
+  overflow: hidden;
+
+  border-top: 0;
+  border-left: 0;
+
+  color: inherit;
+  background: var(--color-surface);
+
+  user-select: none;
+  touch-action: none;
+}
+
+.slot-cell.editable {
+  cursor: crosshair;
+}
+
+.slot-cell.editable:hover {
+  outline: 2px solid #0284c7;
+  outline-offset: -2px;
+}
+
+.slot-cell.editable:focus-visible {
+  outline: 3px solid var(--color-focus);
+  outline-offset: -3px;
+}
+
+/* =========================================================
+   Weekly availability colors
+   ========================================================= */
+
+.slot-cell.status-green {
+  background: var(--color-green);
+}
+
+.slot-cell.status-yellow {
+  background: var(--color-yellow);
+}
+
+.slot-cell.status-red {
+  background: var(--color-red);
+}
+
+.aggregate-bars {
+  position: absolute;
+  inset: 0;
+
+  display: flex;
+
+  width: 100%;
+  height: 100%;
+}
+
+.aggregate-green {
+  background: var(--color-green);
+}
+
+.aggregate-yellow {
+  background: var(--color-yellow);
+}
+
+.aggregate-red {
+  background: var(--color-red);
+}
+
+.aggregate-empty {
+  background: var(--color-surface);
+}
+
+.aggregate-count {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+
+  display: flex;
+  justify-content: center;
+  align-items: center;
+
+  padding: 3px;
+
+  color: var(--color-text-strong);
+
+  font-size: 10px;
+  font-weight: 600;
+  text-align: center;
+
+  text-shadow:
+    0 1px 2px
+    rgb(255 255 255 / 90%);
+}
+
+/* =========================================================
+   Old access-gate compatibility
+
+   This can remain even though login now lives on index.html.
+   ========================================================= */
+
+.access-gate {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 20px;
+
+  overflow-y: auto;
+
+  background:
+    linear-gradient(
+      145deg,
+      #e0f2fe,
+      #f8fafc 45%,
+      #e2e8f0
+    );
+}
+
+.access-gate-hidden {
+  display: none;
+}
+
+/* =========================================================
+   Medium screens
+   ========================================================= */
+
+@media (max-width: 1100px) {
+  :root {
+    --page-padding: 24px;
+  }
+}
+
+/* =========================================================
+   Phones and narrow Teams windows
+   ========================================================= */
+
+@media (max-width: 700px) {
+  :root {
+    --page-padding: 10px;
+    --time-column-width: 76px;
+  }
+
+  /* Shared page headers */
+
+  .header,
+  .page-header {
+    flex-direction: column;
+    align-items: stretch;
+
+    gap: 12px;
+  }
+
+  .header h1,
+  .page-header h1 {
+    font-size: 22px;
+  }
+
+  .header-actions,
+  .page-links {
+    display: grid;
+
+    width: 100%;
+
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr));
+
+    gap: 8px;
+  }
+
+  .header-link,
+  .schedule-link,
+  .availability-link {
+    width: 100%;
+    min-width: 0;
+    min-height: 40px;
+
+    padding: 8px 9px;
+
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  /* Homepage */
+
+  .login-view {
+    padding: 16px;
+  }
+
+  .login-card,
+  .access-panel {
+    padding: 28px 20px;
+  }
+
+  .home-view {
+    padding: 18px;
+  }
+
+  .home-card {
+    padding: 30px 20px;
+  }
+
+  .home-header {
+    flex-direction: column;
+  }
+
+  .tool-grid,
+  .navigation {
+    grid-template-columns: 1fr;
+  }
+
+  .tool-card,
+  .navigation-card {
+    min-height: 210px;
+  }
+
+  /* Equipment schedule */
+
+  .resource-name {
+    padding: 7px 9px;
+
+    font-size: 11px;
+  }
+
+  .hour-label {
+    font-size: 10px;
+  }
+
+  .schedule-scroll-controls span {
+    display: none;
+  }
+
+  /* Availability controls */
+
+  .controls-card {
+    padding: 12px;
+  }
+
+  .member-controls {
+    display: grid;
+
+    width: 100%;
+
+    grid-template-columns:
+      auto minmax(0, 1fr);
+
+    gap: 8px;
+  }
+
+  .member-controls select {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .member-controls button {
+    grid-column:
+      1 / -1;
+
+    width: 100%;
+  }
+
+  .editor-controls {
+    display: grid;
+    align-items: stretch;
+
+    width: 100%;
+
+    grid-template-columns:
+      1fr;
+
+    gap: 8px;
+  }
+
+  .editor-controls button {
+    width: 100%;
+  }
+
+  .clear-button {
+    margin-left: 0;
+  }
+
+  .legend {
+    gap:
+      8px 13px;
+  }
+
+  .availability-table {
+    min-width: 760px;
+  }
+
+  .header-cell {
+    font-size: 12px;
+  }
+
+  .time-cell {
+    font-size: 10px;
+  }
+
+  /* Dialogs */
+
+  .time-inputs {
+    grid-template-columns: 1fr;
+  }
+
+  .dialog-buttons {
+    display: grid;
+
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr));
+  }
+
+  .dialog-buttons .button-spacer {
+    display: none;
+  }
+
+  .dialog-buttons button {
+    width: 100%;
+  }
+}
+
+/* =========================================================
+   Very narrow phones
+   ========================================================= */
+
+@media (max-width: 420px) {
+  .header-actions,
+  .page-links {
+    grid-template-columns: 1fr;
+  }
+
+  .header-link,
+  .schedule-link,
+  .availability-link {
+    white-space: nowrap;
+  }
+
+  .header h1,
+  .page-header h1 {
+    font-size: 21px;
+  }
+
+  .footer {
+    flex-direction: column;
+
+    gap: 5px;
+  }
+
+  .dialog-buttons {
+    grid-template-columns: 1fr;
+  }
+}
