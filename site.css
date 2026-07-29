@@ -1493,8 +1493,22 @@ dialog select:focus {
   touch-action: none;
 }
 
+
+.availability-table.dragging {
+  cursor: crosshair;
+}
+
+.availability-table.dragging,
+.availability-table.dragging * {
+  user-select: none;
+}
+
 .slot-cell.editable {
   cursor: crosshair;
+
+  transition:
+    background-color 60ms linear,
+    outline-color 60ms linear;
 }
 
 .slot-cell.editable:hover {

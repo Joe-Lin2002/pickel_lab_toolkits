@@ -142,7 +142,13 @@ let draftSlots =
 
 let isDragging = false;
 
-let lastPaintedKey = null;
+let dragPointerId = null;
+
+let dragStartCell = null;
+
+let dragCurrentCell = null;
+
+let dragOriginalSlots = null;
 
 /* =========================================================
    Initialize
@@ -284,19 +290,27 @@ function attachEventListeners() {
     saveAvailability
   );
 
+  tableElement.addEventListener(
+    "pointerdown",
+    handleTablePointerDown
+  );
+
   window.addEventListener(
-    "mouseup",
-    stopDragging
+    "pointermove",
+    handleTablePointerMove,
+    {
+      passive: false,
+    }
   );
 
   window.addEventListener(
     "pointerup",
-    stopDragging
+    handleTablePointerUp
   );
 
   window.addEventListener(
     "pointercancel",
-    stopDragging
+    handleTablePointerCancel
   );
 
   nameDialog.addEventListener(
@@ -310,10 +324,172 @@ function attachEventListeners() {
     }
   );
 }
+function applyDragRectangle() {
+  if (
+    !dragStartCell ||
+    !dragCurrentCell ||
+    !dragOriginalSlots
+  ) {
+    return;
+  }
 
-function stopDragging() {
-  isDragging = false;
-  lastPaintedKey = null;
+  /*
+    Reset the draft to its state before the current drag.
+    The current rectangular preview is then applied again.
+  */
+
+  draftSlots =
+    new Map(
+      dragOriginalSlots
+    );
+
+  const minimumWeekday =
+    Math.min(
+      dragStartCell.weekday,
+      dragCurrentCell.weekday
+    );
+
+  const maximumWeekday =
+    Math.max(
+      dragStartCell.weekday,
+      dragCurrentCell.weekday
+    );
+
+  const minimumSlotIndex =
+    Math.min(
+      dragStartCell.slotIndex,
+      dragCurrentCell.slotIndex
+    );
+
+  const maximumSlotIndex =
+    Math.max(
+      dragStartCell.slotIndex,
+      dragCurrentCell.slotIndex
+    );
+
+  for (
+    let weekday =
+      minimumWeekday;
+    weekday <=
+      maximumWeekday;
+    weekday += 1
+  ) {
+    for (
+      let slotIndex =
+        minimumSlotIndex;
+      slotIndex <=
+        maximumSlotIndex;
+      slotIndex += 1
+    ) {
+      draftSlots.set(
+        slotKey(
+          weekday,
+          slotIndex
+        ),
+        selectedStatus
+      );
+    }
+  }
+
+  updateEditableCells();
+}
+
+function updateEditableCells() {
+  const cells =
+    tableElement.querySelectorAll(
+      ".slot-cell.editable"
+    );
+
+  cells.forEach(cell => {
+    const coordinates =
+      getCellCoordinates(cell);
+
+    if (!coordinates) {
+      return;
+    }
+
+    const status =
+      draftSlots.get(
+        slotKey(
+          coordinates.weekday,
+          coordinates.slotIndex
+        )
+      );
+
+    applyStatusClass(
+      cell,
+      status
+    );
+
+    cell.title =
+      [
+        `${formatSlotTime(coordinates.slotIndex)}–` +
+        `${formatSlotTime(coordinates.slotIndex + 1)}`,
+
+        status
+          ? statusLabel(status)
+          : "No response",
+      ].join("\n");
+  });
+}
+
+function getEditableSlotCell(
+  target
+) {
+  if (
+    !(target instanceof Element)
+  ) {
+    return null;
+  }
+
+  const cell =
+    target.closest(
+      ".slot-cell.editable"
+    );
+
+  if (
+    !cell ||
+    !tableElement.contains(cell)
+  ) {
+    return null;
+  }
+
+  return cell;
+}
+
+function getCellCoordinates(
+  cell
+) {
+  const weekday =
+    Number(
+      cell.dataset.weekday
+    );
+
+  const slotIndex =
+    Number(
+      cell.dataset.slotIndex
+    );
+
+  if (
+    !Number.isInteger(
+      weekday
+    ) ||
+    weekday < 1 ||
+    weekday > 5 ||
+    !Number.isInteger(
+      slotIndex
+    ) ||
+    slotIndex < 0 ||
+    slotIndex >=
+      SLOT_COUNT
+  ) {
+    return null;
+  }
+
+  return {
+    weekday,
+    slotIndex,
+  };
 }
 
 /* =========================================================
@@ -805,146 +981,40 @@ function renderEditableCell(
 
   cell.title =
     [
-      `${formatSlotTime(slotIndex)}–${formatSlotTime(slotIndex + 1)}`,
+      `${formatSlotTime(slotIndex)}–` +
+      `${formatSlotTime(slotIndex + 1)}`,
+
       status
         ? statusLabel(status)
         : "No response",
     ].join("\n");
 
+  /*
+    Pointer selection is handled through event delegation on
+    tableElement, so individual cells do not need separate
+    mouse or touch listeners.
+  */
+
   cell.addEventListener(
-    "pointerdown",
+    "keydown",
     event => {
       if (
-        event.pointerType ===
-        "mouse" &&
-        event.button !== 0
+        event.key !== "Enter" &&
+        event.key !== " "
       ) {
         return;
       }
 
       event.preventDefault();
 
-      isDragging = true;
-      lastPaintedKey = null;
-
-      try {
-        cell.setPointerCapture(
-          event.pointerId
-        );
-      } catch {
-        // Pointer capture is optional.
-      }
-
-      paintCell(
-        weekday,
-        slotIndex
+      draftSlots.set(
+        key,
+        selectedStatus
       );
+
+      updateEditableCells();
     }
   );
-
-  cell.addEventListener(
-    "pointerenter",
-    () => {
-      if (isDragging) {
-        paintCell(
-          weekday,
-          slotIndex
-        );
-      }
-    }
-  );
-
-  cell.addEventListener(
-    "click",
-    event => {
-      /*
-        Keyboard activation produces a click without
-        the pointer-drag sequence.
-      */
-
-      if (
-        event.detail === 0
-      ) {
-        paintCell(
-          weekday,
-          slotIndex
-        );
-      }
-    }
-  );
-}
-
-function paintCell(
-  weekday,
-  slotIndex
-) {
-  if (!currentMember) {
-    return;
-  }
-
-  const key =
-    slotKey(
-      weekday,
-      slotIndex
-    );
-
-  if (
-    key === lastPaintedKey
-  ) {
-    return;
-  }
-
-  lastPaintedKey =
-    key;
-
-  draftSlots.set(
-    key,
-    selectedStatus
-  );
-
-  updateSingleEditableCell(
-    weekday,
-    slotIndex
-  );
-}
-
-function updateSingleEditableCell(
-  weekday,
-  slotIndex
-) {
-  const selector =
-    `.slot-cell[data-weekday="${weekday}"]` +
-    `[data-slot-index="${slotIndex}"]`;
-
-  const cell =
-    tableElement.querySelector(
-      selector
-    );
-
-  if (!cell) {
-    return;
-  }
-
-  const status =
-    draftSlots.get(
-      slotKey(
-        weekday,
-        slotIndex
-      )
-    );
-
-  applyStatusClass(
-    cell,
-    status
-  );
-
-  cell.title =
-    [
-      `${formatSlotTime(slotIndex)}–${formatSlotTime(slotIndex + 1)}`,
-      status
-        ? statusLabel(status)
-        : "No response",
-    ].join("\n");
 }
 
 function applyStatusClass(
