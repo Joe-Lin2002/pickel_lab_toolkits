@@ -1498,6 +1498,17 @@ dialog select:focus {
   touch-action: none;
 }
 
+.slot-cell:disabled {
+  opacity: 1;
+  cursor: default;
+  filter: none;
+}
+
+.slot-cell:disabled:hover {
+  opacity: 1;
+  filter: none;
+}
+
 .slot-cell.editable {
   cursor: crosshair;
 
