@@ -1321,6 +1321,15 @@ dialog select:focus {
   line-height: 1.4;
 }
 
+.last-updated-message {
+  margin: 5px 0 0;
+
+  color: var(--color-text-light);
+
+  font-size: 11px;
+  line-height: 1.4;
+}
+
 /* =========================================================
    Weekly availability: legend
    ========================================================= */

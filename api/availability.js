@@ -116,6 +116,7 @@ async function handleGet(
           "weekday",
           "slot_index",
           "status",
+          "updated_at",
         ].join(",")
       )
       .order(
@@ -136,14 +137,18 @@ async function handleGet(
       });
   }
 
+  const slots =
+    Array.isArray(data)
+      ? data
+      : [];
+
   const members =
     [
       ...new Set(
-        (data ?? [])
-          .map(
-            item =>
-              item.person_name
-          )
+        slots.map(
+          item =>
+            item.person_name
+        )
       ),
     ].sort(
       (first, second) =>
@@ -152,11 +157,70 @@ async function handleGet(
         )
     );
 
+  const memberUpdatedAt = {};
+
+  let lastUpdatedAt = null;
+
+  for (
+    const slot
+    of slots
+  ) {
+    if (!slot.updated_at) {
+      continue;
+    }
+
+    const timestamp =
+      new Date(
+        slot.updated_at
+      );
+
+    if (
+      Number.isNaN(
+        timestamp.getTime()
+      )
+    ) {
+      continue;
+    }
+
+    const currentMemberTime =
+      memberUpdatedAt[
+        slot.person_name
+      ];
+
+    if (
+      !currentMemberTime ||
+      timestamp >
+        new Date(
+          currentMemberTime
+        )
+    ) {
+      memberUpdatedAt[
+        slot.person_name
+      ] =
+        timestamp.toISOString();
+    }
+
+    if (
+      !lastUpdatedAt ||
+      timestamp >
+        new Date(
+          lastUpdatedAt
+        )
+    ) {
+      lastUpdatedAt =
+        timestamp.toISOString();
+    }
+  }
+
   return response
     .status(200)
     .json({
       members,
-      slots: data ?? [],
+      slots,
+      last_updated_at:
+        lastUpdatedAt,
+      member_updated_at:
+        memberUpdatedAt,
     });
 }
 

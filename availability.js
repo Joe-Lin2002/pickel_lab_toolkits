@@ -90,6 +90,11 @@ const modeMessage =
     "#mode-message"
   );
 
+const lastUpdatedMessage =
+  document.querySelector(
+    "#last-updated-message"
+  );
+
 const tableElement =
   document.querySelector(
     "#availability-table"
@@ -132,6 +137,10 @@ const nameCancelButton =
 let allSlots = [];
 
 let members = [];
+
+let overallLastUpdatedAt = null;
+
+let memberUpdatedAt = {};
 
 let currentMember = "";
 
@@ -184,6 +193,7 @@ function validateRequiredElements() {
     clearButton,
     saveButton,
     modeMessage,
+    lastUpdatedMessage,
     tableElement,
     statusMessage,
     nameDialog,
@@ -440,6 +450,19 @@ async function loadAvailability() {
         ? payload.members
         : [];
 
+    overallLastUpdatedAt =
+      typeof payload.last_updated_at ===
+        "string"
+        ? payload.last_updated_at
+        : null;
+
+    memberUpdatedAt =
+      payload.member_updated_at &&
+      typeof payload.member_updated_at ===
+        "object"
+        ? payload.member_updated_at
+        : {};
+
     members =
       [
         ...new Set(
@@ -481,6 +504,10 @@ async function loadAvailability() {
     allSlots = [];
 
     members = [];
+
+    overallLastUpdatedAt = null;
+
+    memberUpdatedAt = {};
 
     updateMemberOptions();
 
@@ -631,7 +658,75 @@ function selectMember(
         : "No availability responses have been submitted yet.";
   }
 
+  updateLastUpdatedMessage();
+
   renderTable();
+}
+
+function updateLastUpdatedMessage() {
+  if (!lastUpdatedMessage) {
+    return;
+  }
+
+  const timestamp =
+    currentMember
+      ? memberUpdatedAt[
+          currentMember
+        ]
+      : overallLastUpdatedAt;
+
+  if (!timestamp) {
+    lastUpdatedMessage.textContent =
+      currentMember
+        ? `Last updated by ${currentMember}: Not saved yet`
+        : "Last updated: No submissions yet";
+
+    lastUpdatedMessage.removeAttribute(
+      "title"
+    );
+
+    return;
+  }
+
+  const date =
+    new Date(timestamp);
+
+  if (
+    Number.isNaN(
+      date.getTime()
+    )
+  ) {
+    lastUpdatedMessage.textContent =
+      "Last updated: Unknown";
+
+    return;
+  }
+
+  const formattedTime =
+    formatUpdatedTime(date);
+
+  lastUpdatedMessage.textContent =
+    currentMember
+      ? `Last updated by ${currentMember}: ${formattedTime}`
+      : `Last updated: ${formattedTime}`;
+
+  lastUpdatedMessage.title =
+    date.toString();
+}
+
+function formatUpdatedTime(
+  date
+) {
+  return date.toLocaleString(
+    undefined,
+    {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+    }
+  );
 }
 
 /* =========================================================
