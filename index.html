@@ -8,339 +8,199 @@
     content="width=device-width, initial-scale=1.0"
   >
 
-  <title>
-    Pickel Lab Equipment Schedule
-  </title>
+  <title>Pickel Lab</title>
 
   <link
     rel="stylesheet"
-    href="style.css?v=0.1.0-20260726"
+    href="/home.css?v=0.2-20260729"
   >
 </head>
 
 <body>
 
-  <!-- =====================================
-       Device authentication screen
-       ===================================== -->
-
-  <div
-    id="access-gate"
-    class="access-gate"
-  >
-    <form
-      id="access-form"
-      class="access-panel"
-    >
-      <div class="access-brand">
-        <span class="access-brand-mark">
-          PL
-        </span>
-
-        <div>
-          <h1>
-            Pickel Lab
-          </h1>
-
-          <p>
-            Equipment Schedule
-          </p>
-        </div>
-      </div>
-
-      <h2>
-        Access required
-      </h2>
-
-      <p class="access-description">
-        Enter the lab access code. This device
-        will remain signed in for up to 90 days.
-      </p>
-
-      <label for="access-code">
-        Access code
-      </label>
-
-      <div class="password-field">
-        <input
-          id="access-code"
-          type="password"
-          maxlength="100"
-          autocomplete="current-password"
-          required
-        >
-
-        <button
-          id="toggle-password"
-          class="password-toggle"
-          type="button"
-          aria-label="Show access code"
-        >
-          Show
-        </button>
-      </div>
-
-      <p
-        id="access-error"
-        class="access-error"
-        role="alert"
-      ></p>
-
-      <button
-        id="access-submit"
-        class="access-submit"
-        type="submit"
-      >
-        Unlock Schedule
-      </button>
-
-      <p class="remember-note">
-        A secure browser cookie is used to
-        remember this device.
-      </p>
-    </form>
-  </div>
-
-  <!-- =====================================
-       Main application
-       ===================================== -->
+  <!-- Login screen -->
 
   <main
-    id="main-app"
-    class="app app-locked"
+    id="login-view"
+    class="login-view"
   >
-    <header class="header">
-      <div>
-        <h1>
-          Equipment Schedule
-        </h1>
-
-        <p>
-          Pickel Lab
-        </p>
-      </div>
-
-      <button
-        id="logout-button"
-        class="logout-button"
-        type="button"
-      >
-        Forget this device
-      </button>
-    </header>
-
-    <div class="schedule-toolbar">
-      <div class="date-controls">
-
-        <button
-          id="previous-day"
-          type="button"
-          aria-label="Previous day"
-        >
-          ←
-        </button>
-
-        <button
-          id="today-button"
-          type="button"
-        >
-          Today
-        </button>
-
-        <button
-          id="next-day"
-          type="button"
-          aria-label="Next day"
-        >
-          →
-        </button>
-
-        <input
-          id="date-picker"
-          type="date"
-          aria-label="Select date"
-        >
-
-      </div>
-    </div>
-
-    <section class="schedule-section">
+    <section class="login-card">
 
       <div
-        id="schedule-card"
-        class="schedule-card"
-        tabindex="0"
-        aria-label="Equipment schedule"
+        class="lab-mark"
+        aria-hidden="true"
       >
-        <div
-          id="schedule"
-          class="schedule"
-        ></div>
+        PL
       </div>
 
-      <div class="schedule-scroll-controls">
+      <h1>Pickel Lab</h1>
+
+      <p class="login-description">
+        Enter the lab access code to continue.
+        This device can remain signed in for up to 90 days.
+      </p>
+
+      <form id="login-form">
+
+        <label for="access-code">
+          Access code
+        </label>
+
+        <div class="password-field">
+
+          <input
+            id="access-code"
+            type="password"
+            maxlength="100"
+            autocomplete="current-password"
+            required
+          >
+
+          <button
+            id="toggle-password"
+            class="password-toggle"
+            type="button"
+            aria-label="Show access code"
+          >
+            Show
+          </button>
+
+        </div>
+
+        <p
+          id="login-error"
+          class="login-error"
+          role="alert"
+        ></p>
 
         <button
-          id="scroll-left"
-          type="button"
+          id="login-button"
+          class="login-button"
+          type="submit"
         >
-          ← Earlier
+          Continue
         </button>
 
-        <span>
-          Scroll horizontally to view the full day
-        </span>
+      </form>
+
+      <p class="cookie-note">
+        A secure browser cookie is used to remember this device.
+      </p>
+
+    </section>
+  </main>
+
+  <!-- Logged-in homepage -->
+
+  <main
+    id="home-view"
+    class="home-view hidden"
+  >
+    <section class="home-card">
+
+      <header class="home-header">
+
+        <div>
+          <div
+            class="lab-mark home-lab-mark"
+            aria-hidden="true"
+          >
+            PL
+          </div>
+
+          <h1>Pickel Lab</h1>
+
+          <p>
+            Select a tool to continue.
+          </p>
+        </div>
 
         <button
-          id="scroll-right"
+          id="logout-button"
+          class="logout-button"
           type="button"
         >
-          Later →
+          Forget this device
         </button>
 
-      </div>
+      </header>
+
+      <nav
+        class="tool-grid"
+        aria-label="Pickel Lab tools"
+      >
+
+        <a
+          class="tool-card"
+          href="/equipment-schedule.html"
+        >
+          <div
+            class="tool-icon"
+            aria-hidden="true"
+          >
+            📅
+          </div>
+
+          <div class="tool-content">
+            <h2>
+              Equipment Schedule
+            </h2>
+
+            <p>
+              View equipment availability and create,
+              edit, or delete reservations.
+            </p>
+          </div>
+
+          <span class="tool-link">
+            Open schedule →
+          </span>
+        </a>
+
+        <a
+          class="tool-card"
+          href="/availability.html"
+        >
+          <div
+            class="tool-icon"
+            aria-hidden="true"
+          >
+            👥
+          </div>
+
+          <div class="tool-content">
+            <h2>
+              Weekly Availability
+            </h2>
+
+            <p>
+              Enter your weekly availability and view
+              the combined availability of the group.
+            </p>
+          </div>
+
+          <span class="tool-link">
+            Open availability →
+          </span>
+        </a>
+
+      </nav>
 
     </section>
 
-    <p
-      id="status-message"
-      class="status-message"
-    ></p>
-
     <footer class="footer">
       <span>
-        Developed by Junyi Lin · July 2026
+        Developed by Junyi Lin
       </span>
 
       <span class="version-badge">
-        v0.1 · July 26, 2026
+        v0.2 · July 29, 2026
       </span>
     </footer>
   </main>
 
-  <!-- =====================================
-       Reservation dialog
-       ===================================== -->
-
-  <dialog id="reservation-dialog">
-
-    <form id="reservation-form">
-
-      <h2 id="dialog-title">
-        Add Reservation
-      </h2>
-
-      <input
-        id="reservation-id"
-        type="hidden"
-      >
-
-      <input
-        id="resource-id"
-        type="hidden"
-      >
-
-      <label>
-        Equipment
-
-        <input
-          id="resource-name"
-          type="text"
-          disabled
-        >
-      </label>
-
-      <label>
-        Your name
-
-        <input
-          id="person-name"
-          type="text"
-          maxlength="50"
-          required
-        >
-      </label>
-
-      <label>
-        Description
-
-        <input
-          id="reservation-title"
-          type="text"
-          maxlength="100"
-          required
-        >
-      </label>
-
-      <div class="time-inputs">
-
-        <label>
-          Start
-
-          <input
-            id="start-time"
-            type="time"
-            min="07:00"
-            max="22:45"
-            step="900"
-            required
-          >
-        </label>
-
-        <label>
-          End
-
-          <input
-            id="end-time"
-            type="time"
-            min="07:15"
-            max="23:00"
-            step="900"
-            required
-          >
-        </label>
-
-      </div>
-
-      <p
-        id="form-error"
-        class="form-error"
-      ></p>
-
-      <div class="dialog-buttons">
-
-        <button
-          id="delete-button"
-          class="danger-button hidden"
-          type="button"
-        >
-          Delete
-        </button>
-
-        <span class="button-spacer"></span>
-
-        <button
-          id="cancel-button"
-          type="button"
-        >
-          Cancel
-        </button>
-
-        <button
-          class="primary-button"
-          type="submit"
-        >
-          Save
-        </button>
-
-      </div>
-
-    </form>
-
-  </dialog>
-
   <script
-    src="app.js?v=0.1.0-20260726"
+    src="/home.js?v=0.2-20260729"
   ></script>
 </body>
 </html>

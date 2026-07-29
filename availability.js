@@ -1,10 +1,19 @@
 "use strict";
 
-const AUTH_API_URL =
-  "/api/auth";
+/* =========================================================
+   API endpoint
+   ========================================================= */
 
 const AVAILABILITY_API_URL =
   "/api/availability";
+
+/* =========================================================
+   Weekly schedule configuration
+
+   Monday–Friday
+   9:00 AM–5:00 PM
+   30-minute intervals
+   ========================================================= */
 
 const DAYS = [
   {
@@ -30,18 +39,21 @@ const DAYS = [
 ];
 
 const START_HOUR = 9;
+
 const SLOT_MINUTES = 30;
+
 const SLOT_COUNT = 16;
 
-const accessGate =
-  document.querySelector(
-    "#access-gate"
-  );
+const VALID_STATUSES =
+  new Set([
+    "green",
+    "yellow",
+    "red",
+  ]);
 
-const mainApp =
-  document.querySelector(
-    "#main-app"
-  );
+/* =========================================================
+   HTML elements
+   ========================================================= */
 
 const memberSelect =
   document.querySelector(
@@ -113,9 +125,16 @@ const nameCancelButton =
     "#name-cancel-button"
   );
 
+/* =========================================================
+   State
+   ========================================================= */
+
 let allSlots = [];
+
 let members = [];
+
 let currentMember = "";
+
 let selectedStatus = "green";
 
 let draftSlots =
@@ -123,30 +142,87 @@ let draftSlots =
 
 let isDragging = false;
 
+let lastPaintedKey = null;
+
+/* =========================================================
+   Initialize
+   ========================================================= */
+
 initialize();
 
 async function initialize() {
+  validateRequiredElements();
+
   attachEventListeners();
 
-  const authenticated =
-    await checkAuthentication();
+  updateSelectedColorButton();
 
-  if (!authenticated) {
-    showAccessGate();
-
-    return;
-  }
-
-  accessGate.classList.add(
-    "access-gate-hidden"
-  );
-
-  mainApp.classList.remove(
-    "app-hidden"
-  );
+  renderTable();
 
   await loadAvailability();
 }
+
+/* =========================================================
+   Validate page structure
+   ========================================================= */
+
+function validateRequiredElements() {
+  const required = {
+    memberSelect,
+    newMemberButton,
+    editorControls,
+    clearButton,
+    saveButton,
+    modeMessage,
+    tableElement,
+    statusMessage,
+    nameDialog,
+    nameForm,
+    newMemberNameInput,
+    nameError,
+    nameCancelButton,
+  };
+
+  const missing =
+    Object.entries(required)
+      .filter(
+        ([, element]) =>
+          !element
+      )
+      .map(
+        ([name]) =>
+          name
+      );
+
+  if (
+    colorButtons.length === 0
+  ) {
+    missing.push(
+      "colorButtons"
+    );
+  }
+
+  if (missing.length > 0) {
+    throw new Error(
+      "Missing HTML elements: " +
+      missing.join(", ")
+    );
+  }
+
+  if (
+    !window.pickelAuth ||
+    typeof window.pickelAuth.fetch !==
+      "function"
+  ) {
+    throw new Error(
+      "auth-guard.js was not loaded correctly."
+    );
+  }
+}
+
+/* =========================================================
+   Event listeners
+   ========================================================= */
 
 function attachEventListeners() {
   memberSelect.addEventListener(
@@ -160,17 +236,7 @@ function attachEventListeners() {
 
   newMemberButton.addEventListener(
     "click",
-    () => {
-      nameError.textContent =
-        "";
-
-      newMemberNameInput.value =
-        "";
-
-      nameDialog.showModal();
-
-      newMemberNameInput.focus();
-    }
+    openNameDialog
   );
 
   nameCancelButton.addEventListener(
@@ -182,43 +248,7 @@ function attachEventListeners() {
 
   nameForm.addEventListener(
     "submit",
-    event => {
-      event.preventDefault();
-
-      const name =
-        normalizeName(
-          newMemberNameInput.value
-        );
-
-      if (!name) {
-        nameError.textContent =
-          "Please enter your name.";
-
-        return;
-      }
-
-      if (
-        !members.includes(name)
-      ) {
-        members.push(name);
-
-        members.sort(
-          (first, second) =>
-            first.localeCompare(
-              second
-            )
-        );
-      }
-
-      updateMemberOptions();
-
-      memberSelect.value =
-        name;
-
-      nameDialog.close();
-
-      selectMember(name);
-    }
+    handleNewMember
   );
 
   colorButtons.forEach(
@@ -226,10 +256,19 @@ function attachEventListeners() {
       button.addEventListener(
         "click",
         () => {
-          selectedStatus =
+          const newStatus =
             button.dataset.status;
 
-          updateSelectedColorButton();
+          if (
+            VALID_STATUSES.has(
+              newStatus
+            )
+          ) {
+            selectedStatus =
+              newStatus;
+
+            updateSelectedColorButton();
+          }
         }
       );
     }
@@ -237,11 +276,7 @@ function attachEventListeners() {
 
   clearButton.addEventListener(
     "click",
-    () => {
-      draftSlots.clear();
-
-      renderTable();
-    }
+    clearCurrentAvailability
   );
 
   saveButton.addEventListener(
@@ -251,57 +286,88 @@ function attachEventListeners() {
 
   window.addEventListener(
     "mouseup",
-    () => {
-      isDragging = false;
-    }
+    stopDragging
   );
 
   window.addEventListener(
-    "touchend",
-    () => {
-      isDragging = false;
+    "pointerup",
+    stopDragging
+  );
+
+  window.addEventListener(
+    "pointercancel",
+    stopDragging
+  );
+
+  nameDialog.addEventListener(
+    "click",
+    event => {
+      if (
+        event.target === nameDialog
+      ) {
+        nameDialog.close();
+      }
     }
   );
 }
 
-async function checkAuthentication() {
+function stopDragging() {
+  isDragging = false;
+  lastPaintedKey = null;
+}
+
+/* =========================================================
+   Authenticated request helper
+   ========================================================= */
+
+async function availabilityRequest(
+  url,
+  options = {}
+) {
+  let response;
+
   try {
-    const response =
-      await fetch(
-        AUTH_API_URL,
-        {
-          method: "GET",
-          credentials:
-            "include",
-          cache: "no-store",
-        }
+    response =
+      await window.pickelAuth.fetch(
+        url,
+        options
       );
-
-    if (!response.ok) {
-      return false;
+  } catch (error) {
+    if (
+      error?.message ===
+      "Authentication required."
+    ) {
+      throw error;
     }
 
-    const payload =
-      await response.json();
-
-    return (
-      payload.authenticated ===
-      true
+    console.error(
+      "Availability API connection error:",
+      error
     );
-  } catch {
-    return false;
+
+    throw new Error(
+      "Could not connect to the availability server."
+    );
   }
+
+  const payload =
+    await readJson(
+      response
+    );
+
+  if (!response.ok) {
+    throw new Error(
+      payload.error ??
+      `Request failed with status ${response.status}.`
+    );
+  }
+
+  return payload;
 }
 
-function showAccessGate() {
-  mainApp.classList.add(
-    "app-hidden"
-  );
-
-  accessGate.classList.remove(
-    "access-gate-hidden"
-  );
-}
+/* =========================================================
+   Load availability
+   ========================================================= */
 
 async function loadAvailability() {
   setStatus(
@@ -309,36 +375,13 @@ async function loadAvailability() {
   );
 
   try {
-    const response =
-      await fetch(
+    const payload =
+      await availabilityRequest(
         AVAILABILITY_API_URL,
         {
           method: "GET",
-          credentials:
-            "include",
-          cache: "no-store",
         }
       );
-
-    const payload =
-      await readJson(
-        response
-      );
-
-    if (
-      response.status === 401
-    ) {
-      showAccessGate();
-
-      return;
-    }
-
-    if (!response.ok) {
-      throw new Error(
-        payload.error ??
-        "Could not load availability."
-      );
-    }
 
     allSlots =
       Array.isArray(
@@ -354,34 +397,76 @@ async function loadAvailability() {
         ? payload.members
         : [];
 
+    members =
+      [
+        ...new Set(
+          members
+            .map(normalizeName)
+            .filter(Boolean)
+        ),
+      ].sort(
+        compareNames
+      );
+
+    const previousMember =
+      currentMember;
+
     updateMemberOptions();
 
-    selectMember(
-      currentMember
-    );
+    if (
+      previousMember &&
+      members.includes(
+        previousMember
+      )
+    ) {
+      selectMember(
+        previousMember
+      );
+    } else {
+      selectMember("");
+    }
 
     setStatus("");
   } catch (error) {
-    setStatus(
-      error.message
+    console.error(
+      "Could not load availability:",
+      error
     );
+
+    allSlots = [];
+    members = [];
+
+    updateMemberOptions();
+    selectMember("");
+
+    if (
+      error?.message !==
+      "Authentication required."
+    ) {
+      setStatus(
+        error?.message ??
+        "Could not load availability."
+      );
+    }
   }
 }
 
-function updateMemberOptions() {
-  const previousValue =
-    memberSelect.value;
+/* =========================================================
+   Member selection
+   ========================================================= */
 
-  memberSelect.innerHTML =
-    "";
+function updateMemberOptions() {
+  const desiredValue =
+    currentMember;
+
+  memberSelect.innerHTML = "";
 
   const allOption =
     document.createElement(
       "option"
     );
 
-  allOption.value =
-    "";
+  allOption.value = "";
 
   allOption.textContent =
     "All members";
@@ -410,43 +495,66 @@ function updateMemberOptions() {
     );
   }
 
-  if (
+  memberSelect.value =
     members.includes(
-      previousValue
+      desiredValue
     )
-  ) {
-    memberSelect.value =
-      previousValue;
-  }
+      ? desiredValue
+      : "";
 }
 
 function selectMember(
   memberName
 ) {
   currentMember =
-    memberName;
+    members.includes(
+      memberName
+    )
+      ? memberName
+      : "";
 
   memberSelect.value =
-    memberName;
+    currentMember;
 
   draftSlots.clear();
 
-  if (memberName) {
+  if (currentMember) {
     for (
       const slot
       of allSlots
     ) {
       if (
         slot.person_name ===
-        memberName
+        currentMember
       ) {
-        draftSlots.set(
-          slotKey(
-            slot.weekday,
+        const weekday =
+          Number(
+            slot.weekday
+          );
+
+        const slotIndex =
+          Number(
             slot.slot_index
-          ),
-          slot.status
-        );
+          );
+
+        if (
+          weekday >= 1 &&
+          weekday <= 5 &&
+          slotIndex >= 0 &&
+          slotIndex <
+            SLOT_COUNT &&
+          VALID_STATUSES.has(
+            slot.status
+          )
+        ) {
+          draftSlots.set(
+            slotKey(
+              weekday,
+              slotIndex
+            ),
+            slot.status
+          );
+        }
       }
     }
 
@@ -455,7 +563,7 @@ function selectMember(
     );
 
     modeMessage.textContent =
-      `Editing availability for ${memberName}.`;
+      `Editing availability for ${currentMember}.`;
 
   } else {
     editorControls.classList.add(
@@ -463,19 +571,116 @@ function selectMember(
     );
 
     modeMessage.textContent =
-      members.length
-        ? `Showing combined availability for ${members.length} members.`
+      members.length > 0
+        ? `Showing combined availability for ${members.length} member${members.length === 1 ? "" : "s"}.`
         : "No availability responses have been submitted yet.";
   }
 
   renderTable();
 }
 
-function renderTable() {
-  tableElement.innerHTML =
-    "";
+/* =========================================================
+   Add member
+   ========================================================= */
 
-  appendCell(
+function openNameDialog() {
+  nameError.textContent = "";
+
+  newMemberNameInput.value = "";
+
+  nameDialog.showModal();
+
+  newMemberNameInput.focus();
+}
+
+function handleNewMember(
+  event
+) {
+  event.preventDefault();
+
+  nameError.textContent = "";
+
+  const name =
+    normalizeName(
+      newMemberNameInput.value
+    );
+
+  if (!name) {
+    nameError.textContent =
+      "Please enter your name.";
+
+    newMemberNameInput.focus();
+
+    return;
+  }
+
+  if (
+    name.length > 50
+  ) {
+    nameError.textContent =
+      "Name cannot exceed 50 characters.";
+
+    return;
+  }
+
+  if (
+    containsMarkup(name)
+  ) {
+    nameError.textContent =
+      "The name cannot contain < or >.";
+
+    return;
+  }
+
+  const existingMember =
+    members.find(
+      member =>
+        member.localeCompare(
+          name,
+          undefined,
+          {
+            sensitivity:
+              "accent",
+          }
+        ) === 0
+    );
+
+  const selectedName =
+    existingMember ?? name;
+
+  if (!existingMember) {
+    members.push(
+      selectedName
+    );
+
+    members.sort(
+      compareNames
+    );
+  }
+
+  currentMember =
+    selectedName;
+
+  updateMemberOptions();
+
+  memberSelect.value =
+    selectedName;
+
+  nameDialog.close();
+
+  selectMember(
+    selectedName
+  );
+}
+
+/* =========================================================
+   Render table
+   ========================================================= */
+
+function renderTable() {
+  tableElement.innerHTML = "";
+
+  appendTextCell(
     "Time",
     "table-cell header-cell time-cell corner-cell"
   );
@@ -484,7 +689,7 @@ function renderTable() {
     const day
     of DAYS
   ) {
-    appendCell(
+    appendTextCell(
       day.name,
       "table-cell header-cell"
     );
@@ -492,10 +697,11 @@ function renderTable() {
 
   for (
     let slotIndex = 0;
-    slotIndex < SLOT_COUNT;
+    slotIndex <
+      SLOT_COUNT;
     slotIndex += 1
   ) {
-    appendCell(
+    appendTextCell(
       formatSlotTime(
         slotIndex
       ),
@@ -511,8 +717,7 @@ function renderTable() {
           "button"
         );
 
-      cell.type =
-        "button";
+      cell.type = "button";
 
       cell.className =
         "table-cell slot-cell";
@@ -522,6 +727,13 @@ function renderTable() {
 
       cell.dataset.slotIndex =
         String(slotIndex);
+
+      cell.setAttribute(
+        "aria-label",
+        `${day.name}, ` +
+        `${formatSlotTime(slotIndex)} to ` +
+        `${formatSlotTime(slotIndex + 1)}`
+      );
 
       if (currentMember) {
         renderEditableCell(
@@ -544,6 +756,30 @@ function renderTable() {
   }
 }
 
+function appendTextCell(
+  text,
+  className
+) {
+  const cell =
+    document.createElement(
+      "div"
+    );
+
+  cell.className =
+    className;
+
+  cell.textContent =
+    text;
+
+  tableElement.appendChild(
+    cell
+  );
+}
+
+/* =========================================================
+   Editable cells
+   ========================================================= */
+
 function renderEditableCell(
   cell,
   weekday,
@@ -562,18 +798,42 @@ function renderEditableCell(
   const status =
     draftSlots.get(key);
 
-  if (status) {
-    cell.classList.add(
-      `status-${status}`
-    );
-  }
+  applyStatusClass(
+    cell,
+    status
+  );
+
+  cell.title =
+    [
+      `${formatSlotTime(slotIndex)}–${formatSlotTime(slotIndex + 1)}`,
+      status
+        ? statusLabel(status)
+        : "No response",
+    ].join("\n");
 
   cell.addEventListener(
-    "mousedown",
+    "pointerdown",
     event => {
+      if (
+        event.pointerType ===
+        "mouse" &&
+        event.button !== 0
+      ) {
+        return;
+      }
+
       event.preventDefault();
 
       isDragging = true;
+      lastPaintedKey = null;
+
+      try {
+        cell.setPointerCapture(
+          event.pointerId
+        );
+      } catch {
+        // Pointer capture is optional.
+      }
 
       paintCell(
         weekday,
@@ -583,7 +843,7 @@ function renderEditableCell(
   );
 
   cell.addEventListener(
-    "mouseenter",
+    "pointerenter",
     () => {
       if (isDragging) {
         paintCell(
@@ -595,32 +855,132 @@ function renderEditableCell(
   );
 
   cell.addEventListener(
-    "touchstart",
+    "click",
     event => {
-      event.preventDefault();
+      /*
+        Keyboard activation produces a click without
+        the pointer-drag sequence.
+      */
 
-      paintCell(
+      if (
+        event.detail === 0
+      ) {
+        paintCell(
+          weekday,
+          slotIndex
+        );
+      }
+    }
+  );
+}
+
+function paintCell(
+  weekday,
+  slotIndex
+) {
+  if (!currentMember) {
+    return;
+  }
+
+  const key =
+    slotKey(
+      weekday,
+      slotIndex
+    );
+
+  if (
+    key === lastPaintedKey
+  ) {
+    return;
+  }
+
+  lastPaintedKey =
+    key;
+
+  draftSlots.set(
+    key,
+    selectedStatus
+  );
+
+  updateSingleEditableCell(
+    weekday,
+    slotIndex
+  );
+}
+
+function updateSingleEditableCell(
+  weekday,
+  slotIndex
+) {
+  const selector =
+    `.slot-cell[data-weekday="${weekday}"]` +
+    `[data-slot-index="${slotIndex}"]`;
+
+  const cell =
+    tableElement.querySelector(
+      selector
+    );
+
+  if (!cell) {
+    return;
+  }
+
+  const status =
+    draftSlots.get(
+      slotKey(
         weekday,
         slotIndex
-      );
-    },
-    {
-      passive: false,
-    }
+      )
+    );
+
+  applyStatusClass(
+    cell,
+    status
   );
 
   cell.title =
-    `${formatSlotTime(slotIndex)}–` +
-    `${formatSlotTime(slotIndex + 1)}`;
+    [
+      `${formatSlotTime(slotIndex)}–${formatSlotTime(slotIndex + 1)}`,
+      status
+        ? statusLabel(status)
+        : "No response",
+    ].join("\n");
 }
+
+function applyStatusClass(
+  cell,
+  status
+) {
+  cell.classList.remove(
+    "status-green",
+    "status-yellow",
+    "status-red"
+  );
+
+  if (
+    VALID_STATUSES.has(
+      status
+    )
+  ) {
+    cell.classList.add(
+      `status-${status}`
+    );
+  }
+}
+
+/* =========================================================
+   Aggregate cells
+
+   The colors are displayed proportionally, similar to
+   When2Meet-style combined availability.
+   ========================================================= */
 
 function renderAggregateCell(
   cell,
   weekday,
   slotIndex
 ) {
-  cell.disabled =
-    true;
+  cell.disabled = true;
 
   const counts = {
     green: 0,
@@ -629,29 +989,46 @@ function renderAggregateCell(
     empty: 0,
   };
 
+  const responsesByMember =
+    new Map();
+
+  for (
+    const slot
+    of allSlots
+  ) {
+    if (
+      Number(
+        slot.weekday
+      ) === weekday &&
+      Number(
+        slot.slot_index
+      ) === slotIndex &&
+      VALID_STATUSES.has(
+        slot.status
+      )
+    ) {
+      responsesByMember.set(
+        slot.person_name,
+        slot.status
+      );
+    }
+  }
+
   for (
     const member
     of members
   ) {
-    const response =
-      allSlots.find(
-        item =>
-          item.person_name ===
-            member &&
-          Number(
-            item.weekday
-          ) ===
-            weekday &&
-          Number(
-            item.slot_index
-          ) ===
-            slotIndex
+    const status =
+      responsesByMember.get(
+        member
       );
 
-    if (response) {
-      counts[
-        response.status
-      ] += 1;
+    if (
+      VALID_STATUSES.has(
+        status
+      )
+    ) {
+      counts[status] += 1;
     } else {
       counts.empty += 1;
     }
@@ -694,7 +1071,9 @@ function renderAggregateCell(
         total
       ) * 100}%`;
 
-    bars.appendChild(bar);
+    bars.appendChild(
+      bar
+    );
   }
 
   const countLabel =
@@ -709,7 +1088,7 @@ function renderAggregateCell(
     members.length > 0
   ) {
     countLabel.textContent =
-      `${counts.green} available`;
+      `${counts.green}/${members.length} available`;
   }
 
   cell.append(
@@ -727,44 +1106,9 @@ function renderAggregateCell(
     ].join("\n");
 }
 
-function appendCell(
-  text,
-  className
-) {
-  const cell =
-    document.createElement(
-      "div"
-    );
-
-  cell.className =
-    className;
-
-  cell.textContent =
-    text;
-
-  tableElement.appendChild(
-    cell
-  );
-}
-
-function paintCell(
-  weekday,
-  slotIndex
-) {
-  if (!currentMember) {
-    return;
-  }
-
-  draftSlots.set(
-    slotKey(
-      weekday,
-      slotIndex
-    ),
-    selectedStatus
-  );
-
-  renderTable();
-}
+/* =========================================================
+   Color controls
+   ========================================================= */
 
 function updateSelectedColorButton() {
   colorButtons.forEach(
@@ -774,31 +1118,49 @@ function updateSelectedColorButton() {
         button.dataset.status ===
           selectedStatus
       );
+
+      button.setAttribute(
+        "aria-pressed",
+        button.dataset.status ===
+          selectedStatus
+          ? "true"
+          : "false"
+      );
     }
   );
 }
+
+function clearCurrentAvailability() {
+  if (!currentMember) {
+    return;
+  }
+
+  draftSlots.clear();
+
+  renderTable();
+
+  setStatus(
+    "Availability cleared locally. Click Save Availability to apply the change."
+  );
+}
+
+/* =========================================================
+   Save availability
+   ========================================================= */
 
 async function saveAvailability() {
   if (!currentMember) {
     return;
   }
 
-  saveButton.disabled =
-    true;
-
-  setStatus(
-    "Saving availability..."
-  );
-
-  const slots =
-    [];
+  const slots = [];
 
   for (
     const [
       key,
       status,
     ]
-    of draftSlots
+    of draftSlots.entries()
   ) {
     const [
       weekday,
@@ -808,6 +1170,19 @@ async function saveAvailability() {
         .split("-")
         .map(Number);
 
+    if (
+      weekday < 1 ||
+      weekday > 5 ||
+      slotIndex < 0 ||
+      slotIndex >=
+        SLOT_COUNT ||
+      !VALID_STATUSES.has(
+        status
+      )
+    ) {
+      continue;
+    }
+
     slots.push({
       weekday,
       slot_index:
@@ -816,75 +1191,105 @@ async function saveAvailability() {
     });
   }
 
+  slots.sort(
+    (first, second) =>
+      first.weekday -
+        second.weekday ||
+      first.slot_index -
+        second.slot_index
+  );
+
+  setSaveBusy(true);
+
+  setStatus(
+    "Saving availability..."
+  );
+
   try {
-    const response =
-      await fetch(
-        AVAILABILITY_API_URL,
-        {
-          method: "POST",
+    await availabilityRequest(
+      AVAILABILITY_API_URL,
+      {
+        method: "POST",
 
-          credentials:
-            "include",
+        body:
+          JSON.stringify({
+            person_name:
+              currentMember,
 
-          cache:
-            "no-store",
+            slots,
+          }),
+      }
+    );
 
-          headers: {
-            "Content-Type":
-              "application/json",
-          },
-
-          body:
-            JSON.stringify({
-              person_name:
-                currentMember,
-
-              slots,
-            }),
-        }
-      );
-
-    const payload =
-      await readJson(
-        response
-      );
-
-    if (
-      response.status === 401
-    ) {
-      showAccessGate();
-
-      return;
-    }
-
-    if (!response.ok) {
-      throw new Error(
-        payload.error ??
-        "Could not save availability."
-      );
-    }
+    const savedMember =
+      currentMember;
 
     await loadAvailability();
 
-    memberSelect.value =
-      currentMember;
-
-    selectMember(
-      currentMember
-    );
+    if (
+      members.includes(
+        savedMember
+      )
+    ) {
+      selectMember(
+        savedMember
+      );
+    }
 
     setStatus(
       "Availability saved."
     );
   } catch (error) {
-    setStatus(
-      error.message
+    console.error(
+      "Could not save availability:",
+      error
     );
+
+    if (
+      error?.message !==
+      "Authentication required."
+    ) {
+      setStatus(
+        error?.message ??
+        "Could not save availability."
+      );
+    }
   } finally {
-    saveButton.disabled =
-      false;
+    setSaveBusy(false);
   }
 }
+
+function setSaveBusy(
+  isBusy
+) {
+  saveButton.disabled =
+    isBusy;
+
+  clearButton.disabled =
+    isBusy;
+
+  memberSelect.disabled =
+    isBusy;
+
+  newMemberButton.disabled =
+    isBusy;
+
+  colorButtons.forEach(
+    button => {
+      button.disabled =
+        isBusy;
+    }
+  );
+
+  saveButton.textContent =
+    isBusy
+      ? "Saving..."
+      : "Save Availability";
+}
+
+/* =========================================================
+   Utility functions
+   ========================================================= */
 
 function slotKey(
   weekday,
@@ -930,6 +1335,24 @@ function formatSlotTime(
   );
 }
 
+function statusLabel(
+  status
+) {
+  switch (status) {
+    case "green":
+      return "Fully available";
+
+    case "yellow":
+      return "Prefer not";
+
+    case "red":
+      return "Conflict";
+
+    default:
+      return "No response";
+  }
+}
+
 function normalizeName(
   value
 ) {
@@ -940,11 +1363,29 @@ function normalizeName(
     .replace(
       /\s+/g,
       " "
-    )
-    .replace(
-      /[<>]/g,
-      ""
     );
+}
+
+function compareNames(
+  first,
+  second
+) {
+  return first.localeCompare(
+    second,
+    undefined,
+    {
+      sensitivity:
+        "base",
+    }
+  );
+}
+
+function containsMarkup(
+  value
+) {
+  return /[<>]/.test(
+    value
+  );
 }
 
 async function readJson(

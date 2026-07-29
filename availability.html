@@ -1,5 +1,8 @@
 <!DOCTYPE html>
-<html lang="en">
+<html
+  lang="en"
+  class="protected-page"
+>
 <head>
   <meta charset="UTF-8">
 
@@ -12,43 +15,59 @@
     Pickel Lab Weekly Availability
   </title>
 
+  <style>
+    html.protected-page body {
+      visibility: hidden;
+    }
+
+    html.protected-page.authenticated body {
+      visibility: visible;
+    }
+  </style>
+
   <link
     rel="stylesheet"
-    href="availability.css?v=0.1-20260729"
+    href="/availability.css?v=0.2-20260729"
   >
+
+  <script
+    src="/auth-guard.js?v=0.2-20260729"
+  ></script>
 </head>
 
 <body>
+  <main class="app">
 
-  <div
-    id="access-gate"
-    class="access-gate"
-  >
-    <div class="access-panel">
-      <h1>Pickel Lab</h1>
-
-      <p>
-        Please open the main schedule page and sign in first.
-      </p>
-
-      <a href="/">
-        Go to Equipment Schedule
-      </a>
-    </div>
-  </div>
-
-  <main
-    id="main-app"
-    class="app app-hidden"
-  >
     <header class="page-header">
+
       <div>
-        <h1>Weekly Availability</h1>
+        <h1>
+          Weekly Availability
+        </h1>
 
         <p>
           Pickel Lab
         </p>
       </div>
+
+      <div class="page-links">
+
+        <a
+          class="schedule-link"
+          href="/"
+        >
+          Home
+        </a>
+
+        <a
+          class="schedule-link"
+          href="/equipment-schedule.html"
+        >
+          Equipment Schedule
+        </a>
+
+      </div>
+
     </header>
 
     <section class="controls-card">
@@ -78,6 +97,7 @@
         id="editor-controls"
         class="editor-controls hidden"
       >
+
         <span class="control-label">
           Select a color:
         </span>
@@ -121,6 +141,7 @@
         >
           Save Availability
         </button>
+
       </div>
 
       <p
@@ -133,6 +154,7 @@
     </section>
 
     <section class="legend">
+
       <span>
         <span class="legend-color green"></span>
         Fully available
@@ -152,6 +174,7 @@
         <span class="legend-color empty"></span>
         No response
       </span>
+
     </section>
 
     <section class="availability-card">
@@ -169,20 +192,26 @@
     ></p>
 
     <footer class="footer">
+
       <span>
         Developed by Junyi Lin
       </span>
 
       <span class="version-badge">
-        v0.1 · July 29, 2026
+        v0.2 · July 29, 2026
       </span>
+
     </footer>
 
   </main>
 
   <dialog id="name-dialog">
+
     <form id="name-form">
-      <h2>Add your name</h2>
+
+      <h2>
+        Add your name
+      </h2>
 
       <label for="new-member-name">
         Name
@@ -202,6 +231,7 @@
       ></p>
 
       <div class="dialog-buttons">
+
         <button
           id="name-cancel-button"
           type="button"
@@ -215,12 +245,33 @@
         >
           Continue
         </button>
+
       </div>
+
     </form>
+
   </dialog>
 
-  <script
-    src="availability.js?v=0.1-20260729"
-  ></script>
+  <script>
+    window.pickelAuth
+      .requireAuth()
+      .then(authenticated => {
+        if (!authenticated) {
+          return;
+        }
+
+        const script =
+          document.createElement(
+            "script"
+          );
+
+        script.src =
+          "/availability.js?v=0.2-20260729";
+
+        document.body.appendChild(
+          script
+        );
+      });
+  </script>
 </body>
 </html>

@@ -1,11 +1,8 @@
 "use strict";
 
 /* =========================================================
-   API endpoints
+   API endpoint
    ========================================================= */
-
-const AUTH_API_URL =
-  "/api/auth";
 
 const RESERVATIONS_API_URL =
   "/api/reservations";
@@ -30,7 +27,15 @@ const resources = [
 ];
 
 /* =========================================================
-   Schedule settings
+   Schedule configuration
+
+   Reservable range:
+   7:00 AM–11:00 PM
+
+   Header labels:
+   7 AM–10 PM
+
+   The right edge represents 11:00 PM.
    ========================================================= */
 
 const DISPLAY_START_HOUR = 7;
@@ -50,50 +55,6 @@ const TIME_INCREMENT_MINUTES = 15;
 const DEFAULT_RESERVATION_MINUTES = 60;
 
 const SCROLL_AMOUNT = 410;
-
-/* =========================================================
-   Authentication elements
-   ========================================================= */
-
-const accessGate =
-  document.querySelector(
-    "#access-gate"
-  );
-
-const accessForm =
-  document.querySelector(
-    "#access-form"
-  );
-
-const accessCodeInput =
-  document.querySelector(
-    "#access-code"
-  );
-
-const accessError =
-  document.querySelector(
-    "#access-error"
-  );
-
-const accessSubmitButton =
-  document.querySelector(
-    "#access-submit"
-  );
-
-const togglePasswordButton =
-  document.querySelector(
-    "#toggle-password"
-  );
-
-const logoutButton =
-  document.querySelector(
-    "#logout-button"
-  );
-
-const mainApp =
-  document.querySelector(
-    "#main-app"
-  );
 
 /* =========================================================
    Schedule elements
@@ -245,32 +206,15 @@ async function initialize() {
 
   renderSchedule();
 
-  const authenticated =
-    await checkExistingSession();
-
-  if (authenticated) {
-    unlockApplication();
-
-    await loadReservations();
-  } else {
-    showAccessGate();
-  }
+  await loadReservations();
 }
 
 /* =========================================================
-   Required-element validation
+   Validate page structure
    ========================================================= */
 
 function validateRequiredElements() {
   const required = {
-    accessGate,
-    accessForm,
-    accessCodeInput,
-    accessError,
-    accessSubmitButton,
-    togglePasswordButton,
-    logoutButton,
-    mainApp,
     scheduleElement,
     scheduleCard,
     datePicker,
@@ -306,10 +250,20 @@ function validateRequiredElements() {
           name
       );
 
-  if (missing.length) {
+  if (missing.length > 0) {
     throw new Error(
       "Missing HTML elements: " +
       missing.join(", ")
+    );
+  }
+
+  if (
+    !window.pickelAuth ||
+    typeof window.pickelAuth.fetch !==
+      "function"
+  ) {
+    throw new Error(
+      "auth-guard.js was not loaded correctly."
     );
   }
 }
@@ -319,22 +273,6 @@ function validateRequiredElements() {
    ========================================================= */
 
 function attachEventListeners() {
-  accessForm.addEventListener(
-    "submit",
-    handleAccessSubmit
-  );
-
-  togglePasswordButton
-    .addEventListener(
-      "click",
-      togglePasswordVisibility
-    );
-
-  logoutButton.addEventListener(
-    "click",
-    forgetThisDevice
-  );
-
   previousDayButton.addEventListener(
     "click",
     async () => {
@@ -400,11 +338,6 @@ function attachEventListeners() {
     updateSuggestedEndTime
   );
 
-  /*
-    Clicking the dialog backdrop closes
-    the reservation dialog.
-  */
-
   dialog.addEventListener(
     "click",
     event => {
@@ -415,247 +348,17 @@ function attachEventListeners() {
       }
     }
   );
+
+  dialog.addEventListener(
+    "close",
+    () => {
+      resetDeleteConfirmation();
+    }
+  );
 }
 
 /* =========================================================
-   Authentication
-   ========================================================= */
-
-async function checkExistingSession() {
-  try {
-    const response =
-      await fetch(
-        AUTH_API_URL,
-        {
-          method: "GET",
-          credentials: "include",
-          cache: "no-store",
-        }
-      );
-
-    if (!response.ok) {
-      return false;
-    }
-
-    const payload =
-      await response.json();
-
-    return (
-      payload.authenticated ===
-      true
-    );
-  } catch (error) {
-    console.error(
-      "Session check failed:",
-      error
-    );
-
-    return false;
-  }
-}
-
-async function handleAccessSubmit(
-  event
-) {
-  event.preventDefault();
-
-  accessError.textContent =
-    "";
-
-  const accessCode =
-    accessCodeInput
-      .value
-      .trim();
-
-  if (!accessCode) {
-    accessError.textContent =
-      "Please enter the access code.";
-
-    accessCodeInput.focus();
-
-    return;
-  }
-
-  setAccessFormBusy(true);
-
-  try {
-    const response =
-      await fetch(
-        AUTH_API_URL,
-        {
-          method: "POST",
-
-          credentials:
-            "include",
-
-          cache: "no-store",
-
-          headers: {
-            "Content-Type":
-              "application/json",
-          },
-
-          body:
-            JSON.stringify({
-              accessCode,
-            }),
-        }
-      );
-
-    const payload =
-      await readJsonResponse(
-        response
-      );
-
-    if (!response.ok) {
-      throw new Error(
-        payload.error ??
-        "Authentication failed."
-      );
-    }
-
-    accessCodeInput.value =
-      "";
-
-    unlockApplication();
-
-    await loadReservations();
-  } catch (error) {
-    console.error(
-      "Login failed:",
-      error
-    );
-
-    accessError.textContent =
-      error?.message ??
-      "Could not sign in.";
-
-    accessCodeInput.select();
-  } finally {
-    setAccessFormBusy(false);
-  }
-}
-
-async function forgetThisDevice() {
-  logoutButton.disabled =
-    true;
-
-  try {
-    await fetch(
-      AUTH_API_URL,
-      {
-        method: "DELETE",
-        credentials: "include",
-        cache: "no-store",
-      }
-    );
-  } catch (error) {
-    console.error(
-      "Logout request failed:",
-      error
-    );
-  } finally {
-    currentReservations = [];
-
-    renderSchedule();
-
-    showAccessGate();
-
-    logoutButton.disabled =
-      false;
-  }
-}
-
-function unlockApplication() {
-  accessGate.classList.add(
-    "access-gate-hidden"
-  );
-
-  mainApp.classList.remove(
-    "app-locked"
-  );
-
-  accessError.textContent =
-    "";
-
-  requestAnimationFrame(
-    () => {
-      updateScheduleDimensions();
-    }
-  );
-}
-
-function showAccessGate() {
-  if (
-    dialog.open
-  ) {
-    dialog.close();
-  }
-
-  mainApp.classList.add(
-    "app-locked"
-  );
-
-  accessGate.classList.remove(
-    "access-gate-hidden"
-  );
-
-  accessCodeInput.value =
-    "";
-
-  window.setTimeout(
-    () => {
-      accessCodeInput.focus();
-    },
-    0
-  );
-}
-
-function setAccessFormBusy(
-  isBusy
-) {
-  accessCodeInput.disabled =
-    isBusy;
-
-  accessSubmitButton.disabled =
-    isBusy;
-
-  togglePasswordButton.disabled =
-    isBusy;
-
-  accessSubmitButton.textContent =
-    isBusy
-      ? "Checking..."
-      : "Unlock Schedule";
-}
-
-function togglePasswordVisibility() {
-  const showingPassword =
-    accessCodeInput.type ===
-    "text";
-
-  accessCodeInput.type =
-    showingPassword
-      ? "password"
-      : "text";
-
-  togglePasswordButton.textContent =
-    showingPassword
-      ? "Show"
-      : "Hide";
-
-  togglePasswordButton.setAttribute(
-    "aria-label",
-    showingPassword
-      ? "Show access code"
-      : "Hide access code"
-  );
-
-  accessCodeInput.focus();
-}
-
-/* =========================================================
-   Unified authenticated API request
+   Authenticated API request
    ========================================================= */
 
 async function apiRequest(
@@ -666,30 +369,23 @@ async function apiRequest(
 
   try {
     response =
-      await fetch(
+      await window.pickelAuth.fetch(
         url,
-        {
-          ...options,
-
-          credentials:
-            "include",
-
-          cache:
-            "no-store",
-
-          headers: {
-            ...(options.body
-              ? {
-                  "Content-Type":
-                    "application/json",
-                }
-              : {}),
-
-            ...(options.headers ?? {}),
-          },
-        }
+        options
       );
-  } catch {
+  } catch (error) {
+    if (
+      error?.message ===
+      "Authentication required."
+    ) {
+      throw error;
+    }
+
+    console.error(
+      "API connection error:",
+      error
+    );
+
     throw new Error(
       "Could not connect to the reservation server."
     );
@@ -699,19 +395,6 @@ async function apiRequest(
     await readJsonResponse(
       response
     );
-
-  if (
-    response.status === 401
-  ) {
-    showAccessGate();
-
-    accessError.textContent =
-      "Please enter the lab access code.";
-
-    throw new Error(
-      "Authentication required."
-    );
-  }
 
   if (!response.ok) {
     throw new Error(
@@ -749,17 +432,14 @@ function initializeResponsiveSchedule() {
           scheduleCard.clientWidth
         );
 
-      let resourceColumnWidth =
-        145;
+      let resourceColumnWidth = 145;
 
       if (cardWidth < 800) {
-        resourceColumnWidth =
-          125;
+        resourceColumnWidth = 125;
       }
 
       if (cardWidth < 600) {
-        resourceColumnWidth =
-          110;
+        resourceColumnWidth = 110;
       }
 
       const minimumTimelineWidth =
@@ -838,7 +518,9 @@ function initializeResponsiveSchedule() {
   ) {
     scheduleResizeObserver =
       new ResizeObserver(
-        updateScheduleDimensions
+        () => {
+          updateScheduleDimensions();
+        }
       );
 
     scheduleResizeObserver.observe(
@@ -932,8 +614,7 @@ function initializeScheduleScrolling() {
     "keydown",
     event => {
       if (
-        event.key ===
-        "ArrowLeft"
+        event.key === "ArrowLeft"
       ) {
         event.preventDefault();
 
@@ -944,8 +625,7 @@ function initializeScheduleScrolling() {
       }
 
       if (
-        event.key ===
-        "ArrowRight"
+        event.key === "ArrowRight"
       ) {
         event.preventDefault();
 
@@ -954,8 +634,33 @@ function initializeScheduleScrolling() {
           behavior: "smooth",
         });
       }
+
+      if (
+        event.key === "Home"
+      ) {
+        event.preventDefault();
+
+        scheduleCard.scrollTo({
+          left: 0,
+          behavior: "smooth",
+        });
+      }
+
+      if (
+        event.key === "End"
+      ) {
+        event.preventDefault();
+
+        scheduleCard.scrollTo({
+          left:
+            scheduleCard.scrollWidth,
+          behavior: "smooth",
+        });
+      }
     }
   );
+
+  updateScrollButtonStates();
 }
 
 function updateScrollButtonStates() {
@@ -1047,28 +752,33 @@ async function loadReservations() {
 
     setStatus("");
   } catch (error) {
+    console.error(
+      "Could not load reservations:",
+      error
+    );
+
     currentReservations = [];
 
     renderSchedule();
 
     if (
-      error.message !==
+      error?.message !==
       "Authentication required."
     ) {
       setStatus(
-        error.message
+        error?.message ??
+        "Could not load reservations."
       );
     }
   }
 }
 
 /* =========================================================
-   Schedule rendering
+   Render schedule
    ========================================================= */
 
 function renderSchedule() {
-  scheduleElement.innerHTML =
-    "";
+  scheduleElement.innerHTML = "";
 
   createScheduleHeader();
 
@@ -1082,9 +792,15 @@ function renderSchedule() {
   }
 
   requestAnimationFrame(
-    updateScheduleDimensions
+    () => {
+      updateScheduleDimensions();
+    }
   );
 }
+
+/* =========================================================
+   Schedule header
+   ========================================================= */
 
 function createScheduleHeader() {
   const header =
@@ -1126,12 +842,15 @@ function createScheduleHeader() {
     label.className =
       "hour-label";
 
+    const minutesFromStart =
+      (
+        hour -
+        DISPLAY_START_HOUR
+      ) * 60;
+
     label.style.left =
       `${minutesToPercent(
-        (
-          hour -
-          DISPLAY_START_HOUR
-        ) * 60
+        minutesFromStart
       )}%`;
 
     label.textContent =
@@ -1151,6 +870,10 @@ function createScheduleHeader() {
     header
   );
 }
+
+/* =========================================================
+   Equipment rows
+   ========================================================= */
 
 function createResourceRow(
   resource
@@ -1174,6 +897,9 @@ function createResourceRow(
   name.textContent =
     resource.name;
 
+  name.title =
+    resource.name;
+
   const timeline =
     document.createElement(
       "div"
@@ -1181,6 +907,9 @@ function createResourceRow(
 
   timeline.className =
     "timeline-row";
+
+  timeline.dataset.resourceId =
+    String(resource.id);
 
   timeline.addEventListener(
     "click",
@@ -1197,7 +926,8 @@ function createResourceRow(
       reservation =>
         Number(
           reservation.resource_id
-        ) === resource.id
+        ) ===
+        resource.id
     );
 
   for (
@@ -1225,6 +955,10 @@ function createResourceRow(
     row
   );
 }
+
+/* =========================================================
+   Reservation block
+   ========================================================= */
 
 function createReservationBlock(
   reservation
@@ -1258,6 +992,17 @@ function createReservationBlock(
     new Date(
       reservation.end_time
     );
+
+  if (
+    Number.isNaN(
+      start.getTime()
+    ) ||
+    Number.isNaN(
+      end.getTime()
+    )
+  ) {
+    return null;
+  }
 
   if (
     end <= displayStart ||
@@ -1299,8 +1044,7 @@ function createReservationBlock(
       "button"
     );
 
-  block.type =
-    "button";
+  block.type = "button";
 
   block.className =
     "reservation";
@@ -1315,6 +1059,13 @@ function createReservationBlock(
       duration
     )}%`;
 
+  block.title =
+    [
+      reservation.title ?? "",
+      reservation.person_name ?? "",
+      `${formatTime(start)}–${formatTime(end)}`,
+    ].join("\n");
+
   const title =
     document.createElement(
       "span"
@@ -1324,7 +1075,7 @@ function createReservationBlock(
     "reservation-title";
 
   title.textContent =
-    reservation.title;
+    reservation.title ?? "";
 
   const details =
     document.createElement(
@@ -1335,7 +1086,7 @@ function createReservationBlock(
     "reservation-details";
 
   details.textContent =
-    `${reservation.person_name} · ` +
+    `${reservation.person_name ?? ""} · ` +
     `${formatTime(start)}–` +
     `${formatTime(end)}`;
 
@@ -1359,7 +1110,7 @@ function createReservationBlock(
 }
 
 /* =========================================================
-   Reservation dialog
+   Open create dialog
    ========================================================= */
 
 function openCreateDialog(
@@ -1374,6 +1125,12 @@ function openCreateDialog(
   const rectangle =
     event.currentTarget
       .getBoundingClientRect();
+
+  if (
+    rectangle.width <= 0
+  ) {
+    return;
+  }
 
   const fraction =
     clamp(
@@ -1437,10 +1194,16 @@ function openCreateDialog(
     "hidden"
   );
 
+  resetDeleteConfirmation();
+
   dialog.showModal();
 
   personNameInput.focus();
 }
+
+/* =========================================================
+   Open edit dialog
+   ========================================================= */
 
 function openEditDialog(
   reservation
@@ -1474,10 +1237,10 @@ function openEditDialog(
     "Unknown equipment";
 
   personNameInput.value =
-    reservation.person_name;
+    reservation.person_name ?? "";
 
   titleInput.value =
-    reservation.title;
+    reservation.title ?? "";
 
   startTimeInput.value =
     dateToTimeInput(
@@ -1497,24 +1260,34 @@ function openEditDialog(
     "hidden"
   );
 
+  resetDeleteConfirmation();
+
   dialog.showModal();
+
+  personNameInput.focus();
 }
+
+/* =========================================================
+   Clear dialog
+   ========================================================= */
 
 function clearDialog() {
   form.reset();
 
-  reservationIdInput.value =
-    "";
+  reservationIdInput.value = "";
+  resourceIdInput.value = "";
+  resourceNameInput.value = "";
 
-  resourceIdInput.value =
-    "";
+  formError.textContent = "";
 
-  resourceNameInput.value =
-    "";
+  resourceNameInput.disabled = true;
 
-  formError.textContent =
-    "";
+  resetDeleteConfirmation();
 }
+
+/* =========================================================
+   Suggested end time
+   ========================================================= */
 
 function updateSuggestedEndTime() {
   const startMinutes =
@@ -1528,23 +1301,27 @@ function updateSuggestedEndTime() {
     return;
   }
 
-  const endMinutes =
+  const currentEndMinutes =
     timeInputToMinutes(
       endTimeInput.value
     );
 
+  const suggestedEnd =
+    Math.min(
+      startMinutes +
+      DEFAULT_RESERVATION_MINUTES,
+      DISPLAY_END_HOUR *
+      60
+    );
+
   if (
-    endMinutes === null ||
-    endMinutes <= startMinutes
+    currentEndMinutes === null ||
+    currentEndMinutes <=
+      startMinutes
   ) {
     endTimeInput.value =
       minutesToTimeInput(
-        Math.min(
-          startMinutes +
-          DEFAULT_RESERVATION_MINUTES,
-          DISPLAY_END_HOUR *
-          60
-        )
+        suggestedEnd
       );
   }
 }
@@ -1558,8 +1335,7 @@ async function saveReservation(
 ) {
   event.preventDefault();
 
-  formError.textContent =
-    "";
+  formError.textContent = "";
 
   const reservationId =
     reservationIdInput.value;
@@ -1579,19 +1355,33 @@ async function saveReservation(
       .value
       .trim();
 
-  const start =
-    combineSelectedDateAndTime(
-      startTimeInput.value
-    );
+  if (
+    !resources.some(
+      resource =>
+        resource.id ===
+        resourceId
+    )
+  ) {
+    formError.textContent =
+      "Invalid equipment selection.";
 
-  const end =
-    combineSelectedDateAndTime(
-      endTimeInput.value
-    );
+    return;
+  }
 
   if (!personName) {
     formError.textContent =
       "Please enter your name.";
+
+    personNameInput.focus();
+
+    return;
+  }
+
+  if (
+    personName.length > 50
+  ) {
+    formError.textContent =
+      "Name cannot exceed 50 characters.";
 
     return;
   }
@@ -1599,6 +1389,17 @@ async function saveReservation(
   if (!title) {
     formError.textContent =
       "Please enter a description.";
+
+    titleInput.focus();
+
+    return;
+  }
+
+  if (
+    title.length > 100
+  ) {
+    formError.textContent =
+      "Description cannot exceed 100 characters.";
 
     return;
   }
@@ -1611,6 +1412,40 @@ async function saveReservation(
   ) {
     formError.textContent =
       "The name and description cannot contain < or >.";
+
+    return;
+  }
+
+  if (
+    !startTimeInput.value ||
+    !endTimeInput.value
+  ) {
+    formError.textContent =
+      "Please select a start and end time.";
+
+    return;
+  }
+
+  const start =
+    combineSelectedDateAndTime(
+      startTimeInput.value
+    );
+
+  const end =
+    combineSelectedDateAndTime(
+      endTimeInput.value
+    );
+
+  if (
+    Number.isNaN(
+      start.getTime()
+    ) ||
+    Number.isNaN(
+      end.getTime()
+    )
+  ) {
+    formError.textContent =
+      "Invalid reservation time.";
 
     return;
   }
@@ -1647,7 +1482,53 @@ async function saveReservation(
     end > allowedEnd
   ) {
     formError.textContent =
-      "Reservations must be between 7 AM and 11 PM.";
+      "Reservations must be between 7:00 AM and 11:00 PM.";
+
+    return;
+  }
+
+  const hasConflict =
+    currentReservations.some(
+      reservation => {
+        const sameResource =
+          Number(
+            reservation.resource_id
+          ) ===
+          resourceId;
+
+        const differentReservation =
+          String(
+            reservation.id
+          ) !==
+          String(
+            reservationId
+          );
+
+        const existingStart =
+          new Date(
+            reservation.start_time
+          );
+
+        const existingEnd =
+          new Date(
+            reservation.end_time
+          );
+
+        const overlaps =
+          start < existingEnd &&
+          end > existingStart;
+
+        return (
+          sameResource &&
+          differentReservation &&
+          overlaps
+        );
+      }
+    );
+
+  if (hasConflict) {
+    formError.textContent =
+      "This equipment is already reserved during that time.";
 
     return;
   }
@@ -1706,8 +1587,14 @@ async function saveReservation(
 
     await loadReservations();
   } catch (error) {
+    console.error(
+      "Could not save reservation:",
+      error
+    );
+
     formError.textContent =
-      error.message;
+      error?.message ??
+      "Could not save the reservation.";
   } finally {
     setDialogBusy(false);
   }
@@ -1715,6 +1602,9 @@ async function saveReservation(
 
 /* =========================================================
    Delete reservation
+
+   Teams may block window.confirm().
+   The user must click Delete twice within four seconds.
    ========================================================= */
 
 async function deleteReservation() {
@@ -1724,11 +1614,6 @@ async function deleteReservation() {
   if (!reservationId) {
     return;
   }
-
-  /*
-    Teams may block window.confirm, so deletion uses
-    a second click on the Delete button instead.
-  */
 
   if (
     deleteButton.dataset.confirming !==
@@ -1742,11 +1627,12 @@ async function deleteReservation() {
 
     window.setTimeout(
       () => {
-        deleteButton.dataset.confirming =
-          "false";
-
-        deleteButton.textContent =
-          "Delete";
+        if (
+          deleteButton.dataset.confirming ===
+          "true"
+        ) {
+          resetDeleteConfirmation();
+        }
       },
       4000
     );
@@ -1770,37 +1656,89 @@ async function deleteReservation() {
 
     await loadReservations();
   } catch (error) {
-    formError.textContent =
-      error.message;
-  } finally {
-    deleteButton.dataset.confirming =
-      "false";
+    console.error(
+      "Could not delete reservation:",
+      error
+    );
 
-    deleteButton.textContent =
-      "Delete";
+    formError.textContent =
+      error?.message ??
+      "Could not delete the reservation.";
+  } finally {
+    resetDeleteConfirmation();
 
     setDialogBusy(false);
   }
 }
 
-function setDialogBusy(
-  isBusy
-) {
-  form
-    .querySelectorAll(
-      "button, input:not([type='hidden']):not(:disabled)"
-    )
-    .forEach(element => {
-      element.disabled =
-        isBusy;
-    });
+function resetDeleteConfirmation() {
+  deleteButton.dataset.confirming =
+    "false";
+
+  deleteButton.textContent =
+    "Delete";
 }
 
 /* =========================================================
-   Utilities
+   Busy form state
+
+   This version fixes the issue where inputs stayed disabled
+   after the first reservation was saved.
+   ========================================================= */
+
+function setDialogBusy(
+  isBusy
+) {
+  const buttons =
+    form.querySelectorAll(
+      "button"
+    );
+
+  buttons.forEach(button => {
+    button.disabled =
+      isBusy;
+  });
+
+  personNameInput.readOnly =
+    isBusy;
+
+  titleInput.readOnly =
+    isBusy;
+
+  startTimeInput.readOnly =
+    isBusy;
+
+  endTimeInput.readOnly =
+    isBusy;
+
+  /*
+    Equipment name should always remain disabled.
+  */
+
+  resourceNameInput.disabled =
+    true;
+}
+
+/* =========================================================
+   Date and time utilities
    ========================================================= */
 
 function selectedLocalDate() {
+  if (!datePicker.value) {
+    const now =
+      new Date();
+
+    return new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate(),
+      0,
+      0,
+      0,
+      0
+    );
+  }
+
   const [
     year,
     month,
@@ -1889,6 +1827,13 @@ function timeInputToMinutes(
       .split(":")
       .map(Number);
 
+  if (
+    Number.isNaN(hours) ||
+    Number.isNaN(minutes)
+  ) {
+    return null;
+  }
+
   return (
     hours * 60 +
     minutes
@@ -1912,14 +1857,21 @@ function dateToTimeInput(
 function formatDateInput(
   date
 ) {
-  return (
-    `${date.getFullYear()}-` +
-    `${String(
+  const year =
+    date.getFullYear();
+
+  const month =
+    String(
       date.getMonth() + 1
-    ).padStart(2, "0")}-` +
-    `${String(
+    ).padStart(2, "0");
+
+  const day =
+    String(
       date.getDate()
-    ).padStart(2, "0")}`
+    ).padStart(2, "0");
+
+  return (
+    `${year}-${month}-${day}`
   );
 }
 
@@ -1937,20 +1889,21 @@ function formatHourLabel(
 function formatTime(
   date
 ) {
-  return date
-    .toLocaleTimeString(
-      [],
-      {
-        hour: "numeric",
-        minute: "2-digit",
-      }
-    );
+  return date.toLocaleTimeString(
+    [],
+    {
+      hour: "numeric",
+      minute: "2-digit",
+    }
+  );
 }
 
 function containsMarkup(
   value
 ) {
-  return /[<>]/.test(value);
+  return /[<>]/.test(
+    value
+  );
 }
 
 function clamp(
