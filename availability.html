@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  >
+
+  <title>
+    Pickel Lab Weekly Availability
+  </title>
+
+  <link
+    rel="stylesheet"
+    href="availability.css?v=0.1-20260729"
+  >
+</head>
+
+<body>
+
+  <div
+    id="access-gate"
+    class="access-gate"
+  >
+    <div class="access-panel">
+      <h1>Pickel Lab</h1>
+
+      <p>
+        Please open the main schedule page and sign in first.
+      </p>
+
+      <a href="/">
+        Go to Equipment Schedule
+      </a>
+    </div>
+  </div>
+
+  <main
+    id="main-app"
+    class="app app-hidden"
+  >
+    <header class="page-header">
+      <div>
+        <h1>Weekly Availability</h1>
+
+        <p>
+          Pickel Lab
+        </p>
+      </div>
+
+      <a
+        class="schedule-link"
+        href="/"
+      >
+        Equipment Schedule
+      </a>
+    </header>
+
+    <section class="controls-card">
+
+      <div class="member-controls">
+
+        <label for="member-select">
+          View
+        </label>
+
+        <select id="member-select">
+          <option value="">
+            All members
+          </option>
+        </select>
+
+        <button
+          id="new-member-button"
+          type="button"
+        >
+          Add my name
+        </button>
+
+      </div>
+
+      <div
+        id="editor-controls"
+        class="editor-controls hidden"
+      >
+        <span class="control-label">
+          Select a color:
+        </span>
+
+        <button
+          class="color-button green-button selected"
+          type="button"
+          data-status="green"
+        >
+          Green — Fully available
+        </button>
+
+        <button
+          class="color-button yellow-button"
+          type="button"
+          data-status="yellow"
+        >
+          Yellow — Prefer not
+        </button>
+
+        <button
+          class="color-button red-button"
+          type="button"
+          data-status="red"
+        >
+          Red — Conflict
+        </button>
+
+        <button
+          id="clear-button"
+          class="clear-button"
+          type="button"
+        >
+          Clear
+        </button>
+
+        <button
+          id="save-button"
+          class="save-button"
+          type="button"
+        >
+          Save Availability
+        </button>
+      </div>
+
+      <p
+        id="mode-message"
+        class="mode-message"
+      >
+        Showing availability for all members.
+      </p>
+
+    </section>
+
+    <section class="legend">
+      <span>
+        <span class="legend-color green"></span>
+        Fully available
+      </span>
+
+      <span>
+        <span class="legend-color yellow"></span>
+        Prefer not
+      </span>
+
+      <span>
+        <span class="legend-color red"></span>
+        Conflict
+      </span>
+
+      <span>
+        <span class="legend-color empty"></span>
+        No response
+      </span>
+    </section>
+
+    <section class="availability-card">
+
+      <div
+        id="availability-table"
+        class="availability-table"
+      ></div>
+
+    </section>
+
+    <p
+      id="status-message"
+      class="status-message"
+    ></p>
+
+    <footer class="footer">
+      <span>
+        Developed by Junyi Lin
+      </span>
+
+      <span class="version-badge">
+        v0.1 · July 29, 2026
+      </span>
+    </footer>
+
+  </main>
+
+  <dialog id="name-dialog">
+    <form id="name-form">
+      <h2>Add your name</h2>
+
+      <label for="new-member-name">
+        Name
+      </label>
+
+      <input
+        id="new-member-name"
+        type="text"
+        maxlength="50"
+        autocomplete="name"
+        required
+      >
+
+      <p
+        id="name-error"
+        class="form-error"
+      ></p>
+
+      <div class="dialog-buttons">
+        <button
+          id="name-cancel-button"
+          type="button"
+        >
+          Cancel
+        </button>
+
+        <button
+          class="primary-button"
+          type="submit"
+        >
+          Continue
+        </button>
+      </div>
+    </form>
+  </dialog>
+
+  <script
+    src="availability.js?v=0.1-20260729"
+  ></script>
+</body>
+</html>
