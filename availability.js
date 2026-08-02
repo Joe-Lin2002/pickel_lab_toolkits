@@ -1,15 +1,16 @@
 "use strict";
 
 /* =========================================================
-   API endpoint
+   API
    ========================================================= */
 
 const AVAILABILITY_API_URL =
   "/api/availability";
 
 /* =========================================================
-   Weekly schedule configuration
+   Schedule configuration
 
+   All stored slot indexes are based on Central Time:
    Monday–Friday
    9:00 AM–5:00 PM
    30-minute intervals
@@ -52,6 +53,24 @@ const VALID_STATUSES =
   ]);
 
 /* =========================================================
+   Time-zone configuration
+   ========================================================= */
+
+const BASE_TIME_ZONE =
+  "America/Chicago";
+
+const SUPPORTED_TIME_ZONES =
+  new Set([
+    "America/New_York",
+    "America/Chicago",
+    "America/Denver",
+    "America/Los_Angeles",
+  ]);
+
+const TIME_ZONE_STORAGE_KEY =
+  "pickel_lab_availability_timezone";
+
+/* =========================================================
    HTML elements
    ========================================================= */
 
@@ -63,6 +82,11 @@ const memberSelect =
 const newMemberButton =
   document.querySelector(
     "#new-member-button"
+  );
+
+const timezoneSelect =
+  document.querySelector(
+    "#timezone-select"
   );
 
 const editorControls =
@@ -105,6 +129,26 @@ const statusMessage =
     "#status-message"
   );
 
+const availabilityDetails =
+  document.querySelector(
+    "#availability-details"
+  );
+
+const availabilityDetailsTitle =
+  document.querySelector(
+    "#availability-details-title"
+  );
+
+const availabilityDetailsContent =
+  document.querySelector(
+    "#availability-details-content"
+  );
+
+const availabilityDetailsClose =
+  document.querySelector(
+    "#availability-details-close"
+  );
+
 const nameDialog =
   document.querySelector(
     "#name-dialog"
@@ -138,19 +182,27 @@ let allSlots = [];
 
 let members = [];
 
-let overallLastUpdatedAt = null;
-
-let memberUpdatedAt = {};
-
 let currentMember = "";
 
-let selectedStatus = "green";
+let selectedStatus =
+  "green";
+
+let selectedTimeZone =
+  BASE_TIME_ZONE;
 
 let draftSlots =
   new Map();
 
+let overallLastUpdatedAt =
+  null;
+
+let memberUpdatedAt = {};
+
+let activeDetailsCell =
+  null;
+
 /* =========================================================
-   Rectangle drag state
+   Rectangle-drag state
    ========================================================= */
 
 let isDragging = false;
@@ -164,13 +216,15 @@ let dragCurrentCell = null;
 let dragOriginalSlots = null;
 
 /* =========================================================
-   Initialize
+   Initialization
    ========================================================= */
 
 initialize();
 
 async function initialize() {
   validateRequiredElements();
+
+  initializeTimeZone();
 
   attachEventListeners();
 
@@ -182,13 +236,14 @@ async function initialize() {
 }
 
 /* =========================================================
-   Validate page structure
+   Validation
    ========================================================= */
 
 function validateRequiredElements() {
   const requiredElements = {
     memberSelect,
     newMemberButton,
+    timezoneSelect,
     editorControls,
     clearButton,
     saveButton,
@@ -196,6 +251,10 @@ function validateRequiredElements() {
     lastUpdatedMessage,
     tableElement,
     statusMessage,
+    availabilityDetails,
+    availabilityDetailsTitle,
+    availabilityDetailsContent,
+    availabilityDetailsClose,
     nameDialog,
     nameForm,
     newMemberNameInput,
@@ -252,14 +311,19 @@ function attachEventListeners() {
   memberSelect.addEventListener(
     "change",
     () => {
-      finishRectangleDrag(
-        false
-      );
+      finishRectangleDrag(false);
+
+      hideAvailabilityDetails();
 
       selectMember(
         memberSelect.value
       );
     }
+  );
+
+  timezoneSelect.addEventListener(
+    "change",
+    handleTimeZoneChange
   );
 
   newMemberButton.addEventListener(
@@ -314,13 +378,6 @@ function attachEventListeners() {
     saveAvailability
   );
 
-  /*
-    Pointer events support:
-    - mouse
-    - touch
-    - stylus
-  */
-
   tableElement.addEventListener(
     "pointerdown",
     handleTablePointerDown
@@ -344,16 +401,53 @@ function attachEventListeners() {
     handleTablePointerCancel
   );
 
-  /*
-    Prevent the native drag operation from interfering
-    with rectangular selection.
-  */
-
   tableElement.addEventListener(
     "dragstart",
     event => {
       event.preventDefault();
     }
+  );
+
+  availabilityDetailsClose.addEventListener(
+    "click",
+    hideAvailabilityDetails
+  );
+
+  document.addEventListener(
+    "pointerdown",
+    event => {
+      if (
+        availabilityDetails.classList.contains(
+          "hidden"
+        )
+      ) {
+        return;
+      }
+
+      if (
+        availabilityDetails.contains(
+          event.target
+        ) ||
+        activeDetailsCell?.contains(
+          event.target
+        )
+      ) {
+        return;
+      }
+
+      hideAvailabilityDetails();
+    }
+  );
+
+  window.addEventListener(
+    "resize",
+    hideAvailabilityDetails
+  );
+
+  window.addEventListener(
+    "scroll",
+    hideAvailabilityDetails,
+    true
   );
 
   nameDialog.addEventListener(
@@ -370,7 +464,166 @@ function attachEventListeners() {
 }
 
 /* =========================================================
-   Authenticated request helper
+   Time-zone handling
+   ========================================================= */
+
+function initializeTimeZone() {
+  const savedTimeZone =
+    localStorage.getItem(
+      TIME_ZONE_STORAGE_KEY
+    );
+
+  if (
+    savedTimeZone &&
+    SUPPORTED_TIME_ZONES.has(
+      savedTimeZone
+    )
+  ) {
+    selectedTimeZone =
+      savedTimeZone;
+  } else {
+    selectedTimeZone =
+      detectSupportedTimeZone();
+  }
+
+  timezoneSelect.value =
+    selectedTimeZone;
+
+  updateTimeZoneOptionLabels();
+}
+
+function detectSupportedTimeZone() {
+  let browserTimeZone = "";
+
+  try {
+    browserTimeZone =
+      Intl.DateTimeFormat()
+        .resolvedOptions()
+        .timeZone;
+  } catch {
+    return BASE_TIME_ZONE;
+  }
+
+  const aliases = {
+    "US/Eastern":
+      "America/New_York",
+
+    "US/Central":
+      "America/Chicago",
+
+    "US/Mountain":
+      "America/Denver",
+
+    "US/Pacific":
+      "America/Los_Angeles",
+
+    "America/Detroit":
+      "America/New_York",
+
+    "America/Indiana/Indianapolis":
+      "America/New_York",
+
+    "America/Boise":
+      "America/Denver",
+  };
+
+  const normalizedTimeZone =
+    aliases[browserTimeZone] ??
+    browserTimeZone;
+
+  return SUPPORTED_TIME_ZONES.has(
+    normalizedTimeZone
+  )
+    ? normalizedTimeZone
+    : BASE_TIME_ZONE;
+}
+
+function handleTimeZoneChange() {
+  const requestedTimeZone =
+    timezoneSelect.value;
+
+  selectedTimeZone =
+    SUPPORTED_TIME_ZONES.has(
+      requestedTimeZone
+    )
+      ? requestedTimeZone
+      : BASE_TIME_ZONE;
+
+  timezoneSelect.value =
+    selectedTimeZone;
+
+  localStorage.setItem(
+    TIME_ZONE_STORAGE_KEY,
+    selectedTimeZone
+  );
+
+  hideAvailabilityDetails();
+
+  renderTable();
+}
+
+function updateTimeZoneOptionLabels() {
+  const zoneNames = {
+    "America/New_York":
+      "Eastern Time",
+
+    "America/Chicago":
+      "Central Time",
+
+    "America/Denver":
+      "Mountain Time",
+
+    "America/Los_Angeles":
+      "Pacific Time",
+  };
+
+  for (
+    const option
+    of timezoneSelect.options
+  ) {
+    const abbreviation =
+      getTimeZoneAbbreviation(
+        option.value
+      );
+
+    option.textContent =
+      abbreviation
+        ? `${zoneNames[option.value]} (${abbreviation})`
+        : zoneNames[option.value];
+  }
+}
+
+function getTimeZoneAbbreviation(
+  timeZone
+) {
+  try {
+    const parts =
+      new Intl.DateTimeFormat(
+        "en-US",
+        {
+          timeZone,
+          timeZoneName:
+            "short",
+        }
+      ).formatToParts(
+        new Date()
+      );
+
+    return (
+      parts.find(
+        part =>
+          part.type ===
+          "timeZoneName"
+      )?.value ??
+      ""
+    );
+  } catch {
+    return "";
+  }
+}
+
+/* =========================================================
+   API request
    ========================================================= */
 
 async function availabilityRequest(
@@ -419,7 +672,7 @@ async function availabilityRequest(
 }
 
 /* =========================================================
-   Load availability
+   Load data
    ========================================================= */
 
 async function loadAvailability() {
@@ -505,7 +758,8 @@ async function loadAvailability() {
 
     members = [];
 
-    overallLastUpdatedAt = null;
+    overallLastUpdatedAt =
+      null;
 
     memberUpdatedAt = {};
 
@@ -580,9 +834,9 @@ function updateMemberOptions() {
 function selectMember(
   memberName
 ) {
-  finishRectangleDrag(
-    false
-  );
+  finishRectangleDrag(false);
+
+  hideAvailabilityDetails();
 
   currentMember =
     members.includes(
@@ -654,7 +908,7 @@ function selectMember(
 
     modeMessage.textContent =
       members.length > 0
-        ? `Showing combined availability for ${members.length} member${members.length === 1 ? "" : "s"}.`
+        ? `Showing combined availability for ${members.length} member${members.length === 1 ? "" : "s"}. Hover over or click a time slot to view details.`
         : "No availability responses have been submitted yet.";
   }
 
@@ -663,11 +917,11 @@ function selectMember(
   renderTable();
 }
 
-function updateLastUpdatedMessage() {
-  if (!lastUpdatedMessage) {
-    return;
-  }
+/* =========================================================
+   Last updated
+   ========================================================= */
 
+function updateLastUpdatedMessage() {
   const timestamp =
     currentMember
       ? memberUpdatedAt[
@@ -717,16 +971,31 @@ function updateLastUpdatedMessage() {
 function formatUpdatedTime(
   date
 ) {
-  return date.toLocaleString(
-    undefined,
+  return new Intl.DateTimeFormat(
+    "en-US",
     {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-      hour: "numeric",
-      minute: "2-digit",
+      timeZone:
+        selectedTimeZone,
+
+      month:
+        "short",
+
+      day:
+        "numeric",
+
+      year:
+        "numeric",
+
+      hour:
+        "numeric",
+
+      minute:
+        "2-digit",
+
+      timeZoneName:
+        "short",
     }
-  );
+  ).format(date);
 }
 
 /* =========================================================
@@ -813,9 +1082,6 @@ function handleNewMember(
 
   updateMemberOptions();
 
-  memberSelect.value =
-    selectedName;
-
   nameDialog.close();
 
   selectMember(
@@ -828,6 +1094,8 @@ function handleNewMember(
    ========================================================= */
 
 function renderTable() {
+  hideAvailabilityDetails();
+
   tableElement.innerHTML = "";
 
   appendTextCell(
@@ -883,13 +1151,6 @@ function renderTable() {
           slotIndex
         );
 
-      cell.setAttribute(
-        "aria-label",
-        `${day.name}, ` +
-        `${formatSlotTime(slotIndex)} to ` +
-        `${formatSlotTime(slotIndex + 1)}`
-      );
-
       if (currentMember) {
         renderEditableCell(
           cell,
@@ -909,6 +1170,8 @@ function renderTable() {
       );
     }
   }
+
+  updateLastUpdatedMessage();
 }
 
 function appendTextCell(
@@ -964,10 +1227,6 @@ function renderEditableCell(
     slotIndex,
     status
   );
-
-  /*
-    Keyboard users can select one cell using Enter or Space.
-  */
 
   cell.addEventListener(
     "keydown",
@@ -1043,12 +1302,6 @@ function handleTablePointerDown(
   dragCurrentCell =
     coordinates;
 
-  /*
-    Preserve all availability values that existed before
-    this drag operation. Each preview is rebuilt from this
-    state so dragging backward correctly shrinks the area.
-  */
-
   dragOriginalSlots =
     new Map(
       draftSlots
@@ -1063,10 +1316,7 @@ function handleTablePointerDown(
       event.pointerId
     );
   } catch {
-    /*
-      Pointer capture may be unsupported in some embedded
-      browsers. Rectangle selection can still continue.
-    */
+    // Pointer capture is optional.
   }
 
   applyDragRectangle();
@@ -1084,12 +1334,6 @@ function handleTablePointerMove(
   }
 
   event.preventDefault();
-
-  /*
-    Pointer capture can cause event.target to remain the
-    original table element. elementFromPoint determines the
-    slot currently underneath the pointer.
-  */
 
   const element =
     document.elementFromPoint(
@@ -1154,9 +1398,7 @@ function handleTablePointerUp(
     return;
   }
 
-  finishRectangleDrag(
-    false
-  );
+  finishRectangleDrag(false);
 }
 
 function handleTablePointerCancel(
@@ -1170,14 +1412,7 @@ function handleTablePointerCancel(
     return;
   }
 
-  /*
-    Restore the availability state if the browser cancels
-    the pointer gesture unexpectedly.
-  */
-
-  finishRectangleDrag(
-    true
-  );
+  finishRectangleDrag(true);
 }
 
 function applyDragRectangle() {
@@ -1188,11 +1423,6 @@ function applyDragRectangle() {
   ) {
     return;
   }
-
-  /*
-    Reset the current draft before applying the updated
-    rectangular preview.
-  */
 
   draftSlots =
     new Map(
@@ -1300,9 +1530,7 @@ function finishRectangleDrag(
         dragPointerId
       );
     } catch {
-      /*
-        Pointer capture may already have been released.
-      */
+      // Pointer capture may already be released.
     }
   }
 
@@ -1357,12 +1585,6 @@ function updateRectanglePreview(
   );
 }
 
-/* =========================================================
-   Drag auto-scroll
-
-   Useful on phones when the table is wider than the screen.
-   ========================================================= */
-
 function handleDragAutoScroll(
   event
 ) {
@@ -1393,7 +1615,7 @@ function handleDragAutoScroll(
       edgeThreshold -
       event.clientX;
 
-    const speed =
+    scrollContainer.scrollLeft -=
       Math.min(
         maximumSpeed,
         Math.max(
@@ -1401,9 +1623,6 @@ function handleDragAutoScroll(
           distance / 3
         )
       );
-
-    scrollContainer.scrollLeft -=
-      speed;
   } else if (
     event.clientX >
     rectangle.right -
@@ -1416,7 +1635,7 @@ function handleDragAutoScroll(
         edgeThreshold
       );
 
-    const speed =
+    scrollContainer.scrollLeft +=
       Math.min(
         maximumSpeed,
         Math.max(
@@ -1424,9 +1643,6 @@ function handleDragAutoScroll(
           distance / 3
         )
       );
-
-    scrollContainer.scrollLeft +=
-      speed;
   }
 }
 
@@ -1513,17 +1729,17 @@ function updateCellAccessibility(
       ? statusLabel(status)
       : "No response";
 
+  const timeDescription =
+    `${formatSlotTime(slotIndex)} to ` +
+    `${formatSlotTime(slotIndex + 1)}`;
+
   cell.title =
-    [
-      `${formatSlotTime(slotIndex)}–${formatSlotTime(slotIndex + 1)}`,
-      statusText,
-    ].join("\n");
+    `${timeDescription}\n${statusText}`;
 
   cell.setAttribute(
     "aria-label",
     `${day?.name ?? "Day"}, ` +
-    `${formatSlotTime(slotIndex)} to ` +
-    `${formatSlotTime(slotIndex + 1)}, ` +
+    `${timeDescription}, ` +
     statusText
   );
 
@@ -1597,7 +1813,7 @@ function getCellCoordinates(
 }
 
 /* =========================================================
-   Aggregate cells
+   All-members aggregate cells
    ========================================================= */
 
 function renderAggregateCell(
@@ -1605,61 +1821,29 @@ function renderAggregateCell(
   weekday,
   slotIndex
 ) {
-  cell.disabled = true;
+  cell.classList.add(
+    "aggregate-cell"
+  );
+
+  const memberGroups =
+    getSlotMemberGroups(
+      weekday,
+      slotIndex
+    );
 
   const counts = {
-    green: 0,
-    yellow: 0,
-    red: 0,
-    empty: 0,
+    green:
+      memberGroups.green.length,
+
+    yellow:
+      memberGroups.yellow.length,
+
+    red:
+      memberGroups.red.length,
+
+    empty:
+      memberGroups.empty.length,
   };
-
-  const responsesByMember =
-    new Map();
-
-  for (
-    const slot
-    of allSlots
-  ) {
-    if (
-      Number(
-        slot.weekday
-      ) !== weekday ||
-      Number(
-        slot.slot_index
-      ) !== slotIndex ||
-      !VALID_STATUSES.has(
-        slot.status
-      )
-    ) {
-      continue;
-    }
-
-    responsesByMember.set(
-      slot.person_name,
-      slot.status
-    );
-  }
-
-  for (
-    const member
-    of members
-  ) {
-    const status =
-      responsesByMember.get(
-        member
-      );
-
-    if (
-      VALID_STATUSES.has(
-        status
-      )
-    ) {
-      counts[status] += 1;
-    } else {
-      counts.empty += 1;
-    }
-  }
 
   const total =
     Math.max(
@@ -1723,14 +1907,365 @@ function renderAggregateCell(
     countLabel
   );
 
+  const details = {
+    weekday,
+    slotIndex,
+    memberGroups,
+  };
+
+  const day =
+    DAYS.find(
+      item =>
+        item.id ===
+        weekday
+    );
+
+  const timeDescription =
+    `${formatSlotTime(slotIndex)}–` +
+    `${formatSlotTime(slotIndex + 1)}`;
+
   cell.title =
-    [
-      `${formatSlotTime(slotIndex)}–${formatSlotTime(slotIndex + 1)}`,
-      `Fully available: ${counts.green}`,
-      `Prefer not: ${counts.yellow}`,
-      `Conflict: ${counts.red}`,
-      `No response: ${counts.empty}`,
-    ].join("\n");
+    `${day?.name ?? "Day"}, ${timeDescription}\n` +
+    "Hover or click to view member details.";
+
+  cell.setAttribute(
+    "aria-label",
+    `${day?.name ?? "Day"}, ` +
+    `${timeDescription}. ` +
+    `${counts.green} fully available, ` +
+    `${counts.yellow} prefer not, ` +
+    `${counts.red} conflicts, ` +
+    `${counts.empty} no response.`
+  );
+
+  cell.addEventListener(
+    "mouseenter",
+    () => {
+      showAvailabilityDetails(
+        cell,
+        details
+      );
+    }
+  );
+
+  cell.addEventListener(
+    "focus",
+    () => {
+      showAvailabilityDetails(
+        cell,
+        details
+      );
+    }
+  );
+
+  cell.addEventListener(
+    "click",
+    event => {
+      event.stopPropagation();
+
+      showAvailabilityDetails(
+        cell,
+        details
+      );
+    }
+  );
+
+  cell.addEventListener(
+    "keydown",
+    event => {
+      if (
+        event.key !==
+          "Enter" &&
+        event.key !==
+          " "
+      ) {
+        return;
+      }
+
+      event.preventDefault();
+
+      showAvailabilityDetails(
+        cell,
+        details
+      );
+    }
+  );
+}
+
+function getSlotMemberGroups(
+  weekday,
+  slotIndex
+) {
+  const groups = {
+    green: [],
+    yellow: [],
+    red: [],
+    empty: [],
+  };
+
+  const responseByMember =
+    new Map();
+
+  for (
+    const slot
+    of allSlots
+  ) {
+    if (
+      Number(
+        slot.weekday
+      ) !== weekday ||
+      Number(
+        slot.slot_index
+      ) !== slotIndex ||
+      !VALID_STATUSES.has(
+        slot.status
+      )
+    ) {
+      continue;
+    }
+
+    responseByMember.set(
+      slot.person_name,
+      slot.status
+    );
+  }
+
+  for (
+    const member
+    of members
+  ) {
+    const status =
+      responseByMember.get(
+        member
+      );
+
+    if (
+      VALID_STATUSES.has(
+        status
+      )
+    ) {
+      groups[status].push(
+        member
+      );
+    } else {
+      groups.empty.push(
+        member
+      );
+    }
+  }
+
+  return groups;
+}
+
+/* =========================================================
+   Availability details popup
+   ========================================================= */
+
+function showAvailabilityDetails(
+  cell,
+  details
+) {
+  if (currentMember) {
+    return;
+  }
+
+  activeDetailsCell =
+    cell;
+
+  const day =
+    DAYS.find(
+      item =>
+        item.id ===
+        details.weekday
+    );
+
+  const startTime =
+    formatSlotTime(
+      details.slotIndex
+    );
+
+  const endTime =
+    formatSlotTime(
+      details.slotIndex + 1
+    );
+
+  const abbreviation =
+    getTimeZoneAbbreviation(
+      selectedTimeZone
+    );
+
+  availabilityDetailsTitle.textContent =
+    `${day?.name ?? "Day"}, ` +
+    `${startTime}–${endTime}` +
+    (
+      abbreviation
+        ? ` ${abbreviation}`
+        : ""
+    );
+
+  availabilityDetailsContent.innerHTML =
+    "";
+
+  appendMemberGroup(
+    "Conflict",
+    "red",
+    details.memberGroups.red
+  );
+
+  appendMemberGroup(
+    "Prefer not",
+    "yellow",
+    details.memberGroups.yellow
+  );
+
+  appendMemberGroup(
+    "No response",
+    "empty",
+    details.memberGroups.empty
+  );
+
+  appendMemberGroup(
+    "Fully available",
+    "green",
+    details.memberGroups.green
+  );
+
+  availabilityDetails.classList.remove(
+    "hidden"
+  );
+
+  requestAnimationFrame(
+    () => {
+      positionAvailabilityDetails(
+        cell
+      );
+    }
+  );
+}
+
+function appendMemberGroup(
+  label,
+  status,
+  memberNames
+) {
+  const group =
+    document.createElement(
+      "section"
+    );
+
+  group.className =
+    "availability-member-group";
+
+  const heading =
+    document.createElement(
+      "h3"
+    );
+
+  const indicator =
+    document.createElement(
+      "span"
+    );
+
+  indicator.className =
+    `availability-status-dot ${status}`;
+
+  heading.appendChild(
+    indicator
+  );
+
+  heading.append(
+    `${label} (${memberNames.length})`
+  );
+
+  const names =
+    document.createElement(
+      "p"
+    );
+
+  names.textContent =
+    memberNames.length > 0
+      ? memberNames.join(", ")
+      : "None";
+
+  group.append(
+    heading,
+    names
+  );
+
+  availabilityDetailsContent.appendChild(
+    group
+  );
+}
+
+function positionAvailabilityDetails(
+  cell
+) {
+  const cellRectangle =
+    cell.getBoundingClientRect();
+
+  const popupRectangle =
+    availabilityDetails
+      .getBoundingClientRect();
+
+  const margin = 10;
+
+  let left =
+    cellRectangle.left +
+    cellRectangle.width / 2 -
+    popupRectangle.width / 2;
+
+  left =
+    Math.max(
+      margin,
+      Math.min(
+        left,
+        window.innerWidth -
+        popupRectangle.width -
+        margin
+      )
+    );
+
+  let top =
+    cellRectangle.bottom +
+    8;
+
+  if (
+    top +
+    popupRectangle.height >
+    window.innerHeight -
+    margin
+  ) {
+    top =
+      cellRectangle.top -
+      popupRectangle.height -
+      8;
+  }
+
+  top =
+    Math.max(
+      margin,
+      top
+    );
+
+  availabilityDetails.style.left =
+    `${left}px`;
+
+  availabilityDetails.style.top =
+    `${top}px`;
+}
+
+function hideAvailabilityDetails() {
+  availabilityDetails.classList.add(
+    "hidden"
+  );
+
+  availabilityDetails.style.left =
+    "";
+
+  availabilityDetails.style.top =
+    "";
+
+  activeDetailsCell = null;
 }
 
 /* =========================================================
@@ -1764,9 +2299,7 @@ function clearCurrentAvailability() {
     return;
   }
 
-  finishRectangleDrag(
-    false
-  );
+  finishRectangleDrag(false);
 
   draftSlots.clear();
 
@@ -1786,9 +2319,7 @@ async function saveAvailability() {
     return;
   }
 
-  finishRectangleDrag(
-    false
-  );
+  finishRectangleDrag(false);
 
   const slots = [];
 
@@ -1911,6 +2442,9 @@ function setSaveBusy(
   newMemberButton.disabled =
     isBusy;
 
+  timezoneSelect.disabled =
+    isBusy;
+
   colorButtons.forEach(
     button => {
       button.disabled =
@@ -1925,20 +2459,284 @@ function setSaveBusy(
 }
 
 /* =========================================================
-   Utility functions
+   Time conversion
+
+   The stored schedule is based on America/Chicago.
+   A reference Monday in the current week is used so browser
+   Intl APIs handle daylight-saving offsets.
    ========================================================= */
 
-function slotKey(
-  weekday,
+function formatSlotTime(
   slotIndex
 ) {
-  return (
-    `${weekday}-` +
-    `${slotIndex}`
+  const baseDate =
+    createBaseTimeDate(
+      slotIndex
+    );
+
+  try {
+    return new Intl.DateTimeFormat(
+      "en-US",
+      {
+        timeZone:
+          selectedTimeZone,
+
+        hour:
+          "numeric",
+
+        minute:
+          "2-digit",
+
+        hour12:
+          true,
+      }
+    ).format(
+      baseDate
+    );
+  } catch {
+    return formatCentralSlotTime(
+      slotIndex
+    );
+  }
+}
+
+function createBaseTimeDate(
+  slotIndex
+) {
+  const referenceMonday =
+    getCurrentReferenceMonday();
+
+  const totalMinutes =
+    START_HOUR *
+    60 +
+    slotIndex *
+    SLOT_MINUTES;
+
+  const hour =
+    Math.floor(
+      totalMinutes / 60
+    );
+
+  const minute =
+    totalMinutes % 60;
+
+  return zonedLocalTimeToDate(
+    referenceMonday.year,
+    referenceMonday.month,
+    referenceMonday.day,
+    hour,
+    minute,
+    BASE_TIME_ZONE
   );
 }
 
-function formatSlotTime(
+function getCurrentReferenceMonday() {
+  const now =
+    new Date();
+
+  const centralParts =
+    getDatePartsInTimeZone(
+      now,
+      BASE_TIME_ZONE
+    );
+
+  const centralNoon =
+    new Date(
+      Date.UTC(
+        centralParts.year,
+        centralParts.month - 1,
+        centralParts.day,
+        12,
+        0,
+        0
+      )
+    );
+
+  const weekday =
+    centralNoon.getUTCDay();
+
+  const daysSinceMonday =
+    weekday === 0
+      ? 6
+      : weekday - 1;
+
+  centralNoon.setUTCDate(
+    centralNoon.getUTCDate() -
+    daysSinceMonday
+  );
+
+  return {
+    year:
+      centralNoon.getUTCFullYear(),
+
+    month:
+      centralNoon.getUTCMonth() + 1,
+
+    day:
+      centralNoon.getUTCDate(),
+  };
+}
+
+function getDatePartsInTimeZone(
+  date,
+  timeZone
+) {
+  const parts =
+    new Intl.DateTimeFormat(
+      "en-US",
+      {
+        timeZone,
+        year:
+          "numeric",
+        month:
+          "2-digit",
+        day:
+          "2-digit",
+      }
+    ).formatToParts(date);
+
+  const values = {};
+
+  for (
+    const part
+    of parts
+  ) {
+    if (
+      part.type !==
+      "literal"
+    ) {
+      values[part.type] =
+        Number(
+          part.value
+        );
+    }
+  }
+
+  return {
+    year:
+      values.year,
+
+    month:
+      values.month,
+
+    day:
+      values.day,
+  };
+}
+
+function zonedLocalTimeToDate(
+  year,
+  month,
+  day,
+  hour,
+  minute,
+  timeZone
+) {
+  const initial =
+    new Date(
+      Date.UTC(
+        year,
+        month - 1,
+        day,
+        hour,
+        minute,
+        0,
+        0
+      )
+    );
+
+  const firstOffset =
+    getTimeZoneOffsetMilliseconds(
+      initial,
+      timeZone
+    );
+
+  let result =
+    new Date(
+      initial.getTime() -
+      firstOffset
+    );
+
+  const correctedOffset =
+    getTimeZoneOffsetMilliseconds(
+      result,
+      timeZone
+    );
+
+  if (
+    correctedOffset !==
+    firstOffset
+  ) {
+    result =
+      new Date(
+        initial.getTime() -
+        correctedOffset
+      );
+  }
+
+  return result;
+}
+
+function getTimeZoneOffsetMilliseconds(
+  date,
+  timeZone
+) {
+  const parts =
+    new Intl.DateTimeFormat(
+      "en-US",
+      {
+        timeZone,
+        year:
+          "numeric",
+        month:
+          "2-digit",
+        day:
+          "2-digit",
+        hour:
+          "2-digit",
+        minute:
+          "2-digit",
+        second:
+          "2-digit",
+        hourCycle:
+          "h23",
+      }
+    ).formatToParts(date);
+
+  const values = {};
+
+  for (
+    const part
+    of parts
+  ) {
+    if (
+      part.type !==
+      "literal"
+    ) {
+      values[part.type] =
+        Number(
+          part.value
+        );
+    }
+  }
+
+  const zonedTimestamp =
+    Date.UTC(
+      values.year,
+      values.month - 1,
+      values.day,
+      values.hour,
+      values.minute,
+      values.second
+    );
+
+  return (
+    zonedTimestamp -
+    date.getTime()
+  );
+}
+
+function formatCentralSlotTime(
   slotIndex
 ) {
   const totalMinutes =
@@ -1969,6 +2767,20 @@ function formatSlotTime(
       minute
     ).padStart(2, "0")} ` +
     suffix
+  );
+}
+
+/* =========================================================
+   Utilities
+   ========================================================= */
+
+function slotKey(
+  weekday,
+  slotIndex
+) {
+  return (
+    `${weekday}-` +
+    `${slotIndex}`
   );
 }
 

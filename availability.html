@@ -17,11 +17,11 @@
 
   <link
     rel="stylesheet"
-    href="/site.css?v=0.3-20260729"
+    href="/site.css?v=0.4-20260802"
   >
 
   <script
-    src="/auth-guard.js?v=0.2-20260729"
+    src="/auth-guard.js?v=0.4-20260802"
   ></script>
 </head>
 
@@ -41,20 +41,22 @@
       </div>
 
       <div class="page-links">
+
         <a
-            class="schedule-link"
-            href="/"
+          class="schedule-link"
+          href="/"
         >
-            Home
+          Home
         </a>
 
         <a
-            class="schedule-link"
-            href="/equipment-schedule.html"
+          class="schedule-link"
+          href="/equipment-schedule.html"
         >
-            Equipment Schedule
+          Equipment Schedule
         </a>
-        </div>
+
+      </div>
 
     </header>
 
@@ -78,6 +80,34 @@
         >
           Add my name
         </button>
+
+        <div class="timezone-control">
+
+          <label for="timezone-select">
+            Time zone
+          </label>
+
+          <select id="timezone-select">
+
+            <option value="America/New_York">
+              Eastern Time
+            </option>
+
+            <option value="America/Chicago">
+              Central Time
+            </option>
+
+            <option value="America/Denver">
+              Mountain Time
+            </option>
+
+            <option value="America/Los_Angeles">
+              Pacific Time
+            </option>
+
+          </select>
+
+        </div>
 
       </div>
 
@@ -138,10 +168,10 @@
       >
         Showing availability for all members.
       </p>
-      
+
       <p
-      id="last-updated-message"
-      class="last-updated-message"
+        id="last-updated-message"
+        class="last-updated-message"
       >
         Last updated: —
       </p>
@@ -181,9 +211,39 @@
 
     </section>
 
+    <div
+      id="availability-details"
+      class="availability-details hidden"
+      role="dialog"
+      aria-live="polite"
+      aria-label="Availability details"
+    >
+
+      <div class="availability-details-header">
+
+        <strong id="availability-details-title">
+          Availability details
+        </strong>
+
+        <button
+          id="availability-details-close"
+          type="button"
+          aria-label="Close availability details"
+        >
+          ×
+        </button>
+
+      </div>
+
+      <div id="availability-details-content"></div>
+
+    </div>
+
     <p
       id="status-message"
       class="status-message"
+      role="status"
+      aria-live="polite"
     ></p>
 
     <footer class="footer">
@@ -193,7 +253,7 @@
       </span>
 
       <span class="version-badge">
-        v0.2 · July 29, 2026
+        v0.4 · August 2, 2026
       </span>
 
     </footer>
@@ -223,6 +283,7 @@
       <p
         id="name-error"
         class="form-error"
+        role="alert"
       ></p>
 
       <div class="dialog-buttons">
@@ -261,7 +322,7 @@
           );
 
         script.src =
-          "/availability.js?v=0.2-20260729";
+          "/availability.js?v=0.4-20260802";
 
         document.body.appendChild(
           script
