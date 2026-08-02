@@ -908,7 +908,7 @@ function selectMember(
 
     modeMessage.textContent =
       members.length > 0
-        ? `Showing combined availability for ${members.length} member${members.length === 1 ? "" : "s"}. Hover over or click a time slot to view details.`
+        ? `Showing combined availability for ${members.length} member${members.length === 1 ? "" : "s"}. Click a time slot to view details.`
         : "No availability responses have been submitted yet.";
   }
 
@@ -1926,7 +1926,7 @@ function renderAggregateCell(
 
   cell.title =
     `${day?.name ?? "Day"}, ${timeDescription}\n` +
-    "Hover or click to view member details.";
+    "Click to view member details.";
 
   cell.setAttribute(
     "aria-label",
@@ -1936,16 +1936,6 @@ function renderAggregateCell(
     `${counts.yellow} prefer not, ` +
     `${counts.red} conflicts, ` +
     `${counts.empty} no response.`
-  );
-
-  cell.addEventListener(
-    "mouseenter",
-    () => {
-      showAvailabilityDetails(
-        cell,
-        details
-      );
-    }
   );
 
   cell.addEventListener(

@@ -1747,12 +1747,15 @@ dialog select:focus {
   touch-action: manipulation;
 }
 
-.slot-cell.aggregate-cell:hover,
 .slot-cell.aggregate-cell:focus-visible {
   z-index: 2;
 
   outline: 3px solid var(--color-primary);
   outline-offset: -3px;
+}
+
+.slot-cell.aggregate-cell:hover {
+  filter: brightness(0.98);
 }
 
 .slot-cell.aggregate-cell:active {
