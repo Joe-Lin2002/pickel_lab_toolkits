@@ -35,10 +35,22 @@
           <div class="meeting-timezone-control">
             <label for="meeting-timezone-select">Time zone</label>
             <select id="meeting-timezone-select">
-              <option value="America/New_York">Eastern Time</option>
-              <option value="America/Chicago">Central Time</option>
-              <option value="America/Denver">Mountain Time</option>
-              <option value="America/Los_Angeles">Pacific Time</option>
+              <optgroup label="United States">
+                <option value="America/New_York">US Eastern Time</option>
+                <option value="America/Chicago">US Central Time</option>
+                <option value="America/Denver">US Mountain Time</option>
+                <option value="America/Los_Angeles">US Pacific Time</option>
+              </optgroup>
+              <optgroup label="Global cities">
+                <option value="Europe/London">London Time</option>
+                <option value="Europe/Paris">Paris Time</option>
+                <option value="Asia/Dubai">Dubai Time</option>
+                <option value="Asia/Kolkata">New Delhi Time</option>
+                <option value="Asia/Singapore">Singapore Time</option>
+                <option value="Asia/Shanghai">Shanghai Time</option>
+                <option value="Asia/Tokyo">Tokyo Time</option>
+                <option value="Australia/Sydney">Sydney Time</option>
+              </optgroup>
             </select>
           </div>
 
@@ -97,7 +109,7 @@
     window.pickelAuth.requireAuth().then(authenticated => {
       if (!authenticated) return;
       const script = document.createElement("script");
-      script.src = "/meeting-schedule.js?v=1.1";
+      script.src = "/meeting-schedule.js?v=1.1.1";
       document.body.appendChild(script);
     });
   </script>
