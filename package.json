@@ -1,6 +1,6 @@
 {
-  "name": "pickel-lab-schedule",
-  "version": "1.0.0",
+  "name": "pickel-lab-toolkits",
+  "version": "1.1.0",
   "private": true,
   "type": "module",
   "dependencies": {
