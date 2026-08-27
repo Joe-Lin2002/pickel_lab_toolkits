@@ -1,293 +1,100 @@
 <!DOCTYPE html>
-<html
-  lang="en"
-  class="protected-page"
->
+<html lang="en" class="protected-page">
 <head>
   <meta charset="UTF-8">
-
-  <meta
-    name="viewport"
-    content="width=device-width, initial-scale=1.0"
-  >
-
-  <title>
-    Pickel Lab Equipment Schedule
-  </title>
-
-  <link
-    rel="stylesheet"
-    href="/site.css?v=0.3-20260729"
-  >
-
-  <script
-    src="/auth-guard.js?v=0.2-20260729"
-  ></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Equipment Schedule · Pickel Lab Toolkits</title>
+  <link rel="stylesheet" href="/site.css?v=1.1">
+  <link rel="stylesheet" href="/site-shell.css?v=1.1">
+  <script src="/auth-guard.js?v=1.1"></script>
+  <script src="/site-shell.js?v=1.1" defer></script>
 </head>
-
 <body>
+  <pickel-site-banner></pickel-site-banner>
+
   <main class="app">
-
-    <header class="header">
-
-      <div>
-        <h1>
-          Equipment Schedule
-        </h1>
-
-        <p>
-          Pickel Lab
-        </p>
-      </div>
-
-      <div class="header-actions">
-
-        <a
-          class="header-link"
-          href="/"
-        >
-          Home
-        </a>
-
-        <a
-          class="header-link"
-          href="/availability.html"
-        >
-          Weekly Availability
-        </a>
-
-      </div>
-
+    <header class="page-title-block">
+      <h1>Equipment Schedule</h1>
+      <p>View and manage shared equipment reservations.</p>
     </header>
 
     <div class="schedule-toolbar">
       <div class="date-controls">
-
-        <button
-          id="previous-day"
-          type="button"
-          aria-label="Previous day"
-        >
-          ←
-        </button>
-
-        <button
-          id="today-button"
-          type="button"
-        >
-          Today
-        </button>
-
-        <button
-          id="next-day"
-          type="button"
-          aria-label="Next day"
-        >
-          →
-        </button>
-
-        <input
-          id="date-picker"
-          type="date"
-          aria-label="Select date"
-        >
-
+        <button id="previous-day" type="button" aria-label="Previous day">←</button>
+        <button id="today-button" type="button">Today</button>
+        <button id="next-day" type="button" aria-label="Next day">→</button>
+        <input id="date-picker" type="date" aria-label="Select date">
       </div>
     </div>
 
     <section class="schedule-section">
-
-      <div
-        id="schedule-card"
-        class="schedule-card"
-        tabindex="0"
-        aria-label="Equipment schedule"
-      >
-        <div
-          id="schedule"
-          class="schedule"
-        ></div>
+      <div id="schedule-card" class="schedule-card" tabindex="0" aria-label="Equipment schedule">
+        <div id="schedule" class="schedule"></div>
       </div>
 
       <div class="schedule-scroll-controls">
-
-        <button
-          id="scroll-left"
-          type="button"
-        >
-          ← Earlier
-        </button>
-
-        <span>
-          Scroll horizontally to view the full day
-        </span>
-
-        <button
-          id="scroll-right"
-          type="button"
-        >
-          Later →
-        </button>
-
+        <button id="scroll-left" type="button">← Earlier</button>
+        <span>Scroll horizontally to view the full day</span>
+        <button id="scroll-right" type="button">Later →</button>
       </div>
-
     </section>
 
-    <p
-      id="status-message"
-      class="status-message"
-    ></p>
-
-    <footer class="footer">
-
-      <span>
-        Developed by Junyi Lin
-      </span>
-
-      <span class="version-badge">
-        v1.0 · August 2, 2026
-      </span>
-
-    </footer>
+    <p id="status-message" class="status-message"></p>
   </main>
 
+  <pickel-site-footer></pickel-site-footer>
+
   <dialog id="reservation-dialog">
-
     <form id="reservation-form">
-
-      <h2 id="dialog-title">
-        Add Reservation
-      </h2>
-
-      <input
-        id="reservation-id"
-        type="hidden"
-      >
-
-      <input
-        id="resource-id"
-        type="hidden"
-      >
+      <h2 id="dialog-title">Add Reservation</h2>
+      <input id="reservation-id" type="hidden">
+      <input id="resource-id" type="hidden">
 
       <label>
         Equipment
-
-        <input
-          id="resource-name"
-          type="text"
-          disabled
-        >
+        <input id="resource-name" type="text" disabled>
       </label>
 
       <label>
         Your name
-
-        <input
-          id="person-name"
-          type="text"
-          maxlength="50"
-          required
-        >
+        <input id="person-name" type="text" maxlength="50" required>
       </label>
 
       <label>
         Description
-
-        <input
-          id="reservation-title"
-          type="text"
-          maxlength="100"
-          required
-        >
+        <input id="reservation-title" type="text" maxlength="100" required>
       </label>
 
       <div class="time-inputs">
-
         <label>
           Start
-
-          <input
-            id="start-time"
-            type="time"
-            min="07:00"
-            max="22:45"
-            step="900"
-            required
-          >
+          <input id="start-time" type="time" min="07:00" max="22:45" step="900" required>
         </label>
 
         <label>
           End
-
-          <input
-            id="end-time"
-            type="time"
-            min="07:15"
-            max="23:00"
-            step="900"
-            required
-          >
+          <input id="end-time" type="time" min="07:15" max="23:00" step="900" required>
         </label>
-
       </div>
 
-      <p
-        id="form-error"
-        class="form-error"
-      ></p>
+      <p id="form-error" class="form-error"></p>
 
       <div class="dialog-buttons">
-
-        <button
-          id="delete-button"
-          class="danger-button hidden"
-          type="button"
-        >
-          Delete
-        </button>
-
+        <button id="delete-button" class="danger-button hidden" type="button">Delete</button>
         <span class="button-spacer"></span>
-
-        <button
-          id="cancel-button"
-          type="button"
-        >
-          Cancel
-        </button>
-
-        <button
-          class="primary-button"
-          type="submit"
-        >
-          Save
-        </button>
-
+        <button id="cancel-button" type="button">Cancel</button>
+        <button class="primary-button" type="submit">Save</button>
       </div>
-
     </form>
-
   </dialog>
 
   <script>
-    window.pickelAuth
-      .requireAuth()
-      .then(authenticated => {
-        if (!authenticated) {
-          return;
-        }
-
-        const script =
-          document.createElement(
-            "script"
-          );
-
-        script.src =
-          "/app.js?v=0.2-20260729";
-
-        document.body.appendChild(
-          script
-        );
-      });
+    window.pickelAuth.requireAuth().then(authenticated => {
+      if (!authenticated) return;
+      const script = document.createElement("script");
+      script.src = "/app.js?v=1.1";
+      document.body.appendChild(script);
+    });
   </script>
 </body>
 </html>
