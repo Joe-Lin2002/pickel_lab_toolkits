@@ -1,5 +1,7 @@
 "use strict";
 
+ensureDesktopStyles();
+
 const PICKEL_SITE_VERSION = "v1.1";
 const PICKEL_SITE_NAME = "Pickel Lab Toolkits";
 
@@ -9,6 +11,16 @@ const PICKEL_NAV_ITEMS = [
   { href: "/availability.html", label: "Availability", match: "/availability.html" },
   { href: "/meeting-schedule.html", label: "Meetings", match: "/meeting-schedule.html" },
 ];
+
+function ensureDesktopStyles() {
+  if (document.querySelector('link[data-pickel-desktop-styles="true"]')) return;
+
+  const link = document.createElement("link");
+  link.rel = "stylesheet";
+  link.href = "/desktop.css?v=1.1-20260827";
+  link.dataset.pickelDesktopStyles = "true";
+  document.head.appendChild(link);
+}
 
 class PickelSiteBanner extends HTMLElement {
   connectedCallback() {
