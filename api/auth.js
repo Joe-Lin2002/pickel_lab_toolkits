@@ -15,6 +15,12 @@ const labAccessCode =
 const sessionSecret =
   process.env.SESSION_SECRET;
 
+const recaptchaSiteKey =
+  process.env.RECAPTCHA_SITE_KEY ?? "";
+
+const recaptchaSecretKey =
+  process.env.RECAPTCHA_SECRET_KEY ?? "";
+
 /* =========================================================
    Main Vercel Function
    ========================================================= */
@@ -85,8 +91,6 @@ export default async function handler(
 
 /* =========================================================
    GET /api/auth
-
-   Check whether the device already has a valid session.
    ========================================================= */
 
 function handleStatus(
@@ -103,6 +107,12 @@ function handleStatus(
     200,
     {
       authenticated,
+      recaptchaSiteKey,
+      recaptchaConfigured:
+        Boolean(
+          recaptchaSiteKey &&
+          recaptchaSecretKey
+        ),
     }
   );
 }
@@ -112,14 +122,72 @@ function handleStatus(
 
    Body:
    {
-     "accessCode": "..."
+     "accessCode": "...",
+     "recaptchaToken": "..."
    }
    ========================================================= */
 
-function handleLogin(
+async function handleLogin(
   request,
   response
 ) {
+  if (
+    !recaptchaSiteKey ||
+    !recaptchaSecretKey
+  ) {
+    console.error(
+      "RECAPTCHA_SITE_KEY or RECAPTCHA_SECRET_KEY is missing."
+    );
+
+    return sendJson(
+      response,
+      500,
+      {
+        error:
+          "Human verification is not configured.",
+      }
+    );
+  }
+
+  const recaptchaToken =
+    typeof request.body?.recaptchaToken ===
+    "string"
+      ? request.body.recaptchaToken.trim()
+      : "";
+
+  if (!recaptchaToken) {
+    return sendJson(
+      response,
+      400,
+      {
+        error:
+          "Please complete the human verification.",
+      }
+    );
+  }
+
+  const verification =
+    await verifyRecaptcha(
+      recaptchaToken,
+      getRequestIp(request)
+    );
+
+  if (!verification.success) {
+    console.warn(
+      "reCAPTCHA verification failed:",
+      verification.errorCodes
+    );
+
+    return sendJson(
+      response,
+      403,
+      {
+        error:
+          "Human verification failed. Please try again.",
+      }
+    );
+  }
+
   const suppliedCode =
     typeof request.body?.accessCode ===
     "string"
@@ -132,11 +200,6 @@ function handleLogin(
       labAccessCode
     )
   ) {
-    /*
-      A generic response avoids revealing
-      additional authentication details.
-    */
-
     return sendJson(
       response,
       401,
@@ -166,10 +229,103 @@ function handleLogin(
   );
 }
 
+async function verifyRecaptcha(
+  token,
+  remoteIp
+) {
+  try {
+    const form =
+      new URLSearchParams();
+
+    form.set(
+      "secret",
+      recaptchaSecretKey
+    );
+
+    form.set(
+      "response",
+      token
+    );
+
+    if (remoteIp) {
+      form.set(
+        "remoteip",
+        remoteIp
+      );
+    }
+
+    const verificationResponse =
+      await fetch(
+        "https://www.google.com/recaptcha/api/siteverify",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type":
+              "application/x-www-form-urlencoded",
+          },
+          body: form.toString(),
+          cache: "no-store",
+        }
+      );
+
+    if (!verificationResponse.ok) {
+      return {
+        success: false,
+        errorCodes: [
+          `google-http-${verificationResponse.status}`,
+        ],
+      };
+    }
+
+    const payload =
+      await verificationResponse.json();
+
+    return {
+      success:
+        payload?.success === true,
+      errorCodes:
+        Array.isArray(
+          payload?.["error-codes"]
+        )
+          ? payload["error-codes"]
+          : [],
+    };
+  } catch (error) {
+    console.error(
+      "reCAPTCHA verification request failed:",
+      error
+    );
+
+    return {
+      success: false,
+      errorCodes: [
+        "verification-request-failed",
+      ],
+    };
+  }
+}
+
+function getRequestIp(request) {
+  const forwarded =
+    request.headers[
+      "x-forwarded-for"
+    ];
+
+  if (
+    typeof forwarded ===
+      "string" &&
+    forwarded
+  ) {
+    return forwarded
+      .split(",")[0]
+      .trim();
+  }
+
+  return "";
+}
+
 /* =========================================================
    DELETE /api/auth
-
-   Clear the remembered-device cookie.
    ========================================================= */
 
 function handleLogout(
@@ -191,15 +347,6 @@ function handleLogout(
 
 /* =========================================================
    Session token
-
-   Format:
-   base64url(payload).base64url(signature)
-
-   Payload:
-   {
-     "exp": UNIX timestamp,
-     "purpose": "pickel-lab-schedule"
-   }
    ========================================================= */
 
 function createSessionToken() {
@@ -424,11 +571,6 @@ function safeTextEqual(
     firstBuffer.length !==
     secondBuffer.length
   ) {
-    /*
-      Perform a dummy comparison so the failure
-      path is less timing-dependent.
-    */
-
     const dummy =
       Buffer.alloc(
         firstBuffer.length
