@@ -5,12 +5,22 @@ const DEFAULT_TIME_ZONE = "America/Chicago";
 const TIME_ZONE_STORAGE_KEY = "pickel_lab_meeting_timezone";
 const VIEW_STORAGE_KEY = "pickel_lab_meeting_view";
 
-const SUPPORTED_TIME_ZONES = new Set([
-  "America/New_York",
-  "America/Chicago",
-  "America/Denver",
-  "America/Los_Angeles",
-]);
+const TIME_ZONE_LABELS = {
+  "America/New_York": "US Eastern Time",
+  "America/Chicago": "US Central Time",
+  "America/Denver": "US Mountain Time",
+  "America/Los_Angeles": "US Pacific Time",
+  "Europe/London": "London Time",
+  "Europe/Paris": "Paris Time",
+  "Asia/Dubai": "Dubai Time",
+  "Asia/Kolkata": "New Delhi Time",
+  "Asia/Singapore": "Singapore Time",
+  "Asia/Shanghai": "Shanghai Time",
+  "Asia/Tokyo": "Tokyo Time",
+  "Australia/Sydney": "Sydney Time",
+};
+
+const SUPPORTED_TIME_ZONES = new Set(Object.keys(TIME_ZONE_LABELS));
 
 const DAY_NAMES = [
   "Sunday",
@@ -198,30 +208,13 @@ function detectTimeZone() {
 }
 
 function updateTimeZoneLabels() {
-  const names = {
-    "America/New_York": "Eastern Time",
-    "America/Chicago": "Central Time",
-    "America/Denver": "Mountain Time",
-    "America/Los_Angeles": "Pacific Time",
-  };
-
   for (const option of timezoneSelect.options) {
-    const abbreviation = getTimeZoneAbbreviation(option.value);
-    option.textContent = `${names[option.value]} (${abbreviation})`;
+    option.textContent = TIME_ZONE_LABELS[option.value] ?? option.textContent;
   }
 }
 
-function getTimeZoneAbbreviation(timeZone) {
-  try {
-    const parts = new Intl.DateTimeFormat("en-US", {
-      timeZone,
-      timeZoneName: "short",
-    }).formatToParts(new Date());
-
-    return parts.find(item => item.type === "timeZoneName")?.value ?? "";
-  } catch {
-    return "";
-  }
+function getSelectedTimeZoneLabel() {
+  return TIME_ZONE_LABELS[selectedTimeZone] ?? selectedTimeZone;
 }
 
 function updateViewButtons() {
@@ -471,8 +464,10 @@ function createMonthEvent(event) {
 function showMeetingDetails(event) {
   detailsTitle.textContent = event.title || "Untitled meeting";
 
+  const zoneLabel = getSelectedTimeZoneLabel();
+
   if (event.all_day) {
-    detailsTime.textContent = formatMeetingDate(new Date(event.start)) + " · All day";
+    detailsTime.textContent = `${formatMeetingDate(new Date(event.start))} · All day · ${zoneLabel}`;
   } else {
     const start = new Date(event.start);
     const end = new Date(event.end);
@@ -480,8 +475,8 @@ function showMeetingDetails(event) {
       formatDateKeyInTimeZone(end, selectedTimeZone);
 
     detailsTime.textContent = sameDay
-      ? `${formatMeetingDate(start)} · ${formatMeetingTime(start)} – ${formatMeetingTime(end)}`
-      : `${formatMeetingDateTime(start)} – ${formatMeetingDateTime(end)}`;
+      ? `${formatMeetingDate(start)} · ${formatMeetingTime(start)} – ${formatMeetingTime(end)} · ${zoneLabel}`
+      : `${formatMeetingDateTime(start)} – ${formatMeetingDateTime(end)} · ${zoneLabel}`;
   }
 
   const location = String(event.location ?? "").trim();
@@ -515,7 +510,6 @@ function formatMeetingTime(date) {
     hour: "numeric",
     minute: "2-digit",
     hour12: true,
-    timeZoneName: "short",
   }).format(date);
 }
 
@@ -548,7 +542,6 @@ function formatMeetingDateTime(date) {
     hour: "numeric",
     minute: "2-digit",
     hour12: true,
-    timeZoneName: "short",
   }).format(date);
 }
 
@@ -590,13 +583,14 @@ function updateSyncStatus(timestamp) {
 function updateSyncStatusFromCurrentText() {
   if (!lastFetchedAt) return;
 
-  syncStatus.textContent = "Last refreshed " + new Intl.DateTimeFormat("en-US", {
+  const formatted = new Intl.DateTimeFormat("en-US", {
     timeZone: selectedTimeZone,
     hour: "numeric",
     minute: "2-digit",
     second: "2-digit",
-    timeZoneName: "short",
   }).format(lastFetchedAt);
+
+  syncStatus.textContent = `Last refreshed ${formatted} · ${getSelectedTimeZoneLabel()}`;
 }
 
 function getWeekStart(date) {
