@@ -13,13 +13,13 @@ const SUPPORTED_TIME_ZONES = new Set([
 ]);
 
 const DAY_NAMES = [
+  "Sunday",
   "Monday",
   "Tuesday",
   "Wednesday",
   "Thursday",
   "Friday",
   "Saturday",
-  "Sunday",
 ];
 
 const previousPeriodButton = document.querySelector("#previous-period");
@@ -36,10 +36,21 @@ const meetingMonthWrap = document.querySelector("#meeting-month-wrap");
 const meetingMonthGrid = document.querySelector("#meeting-month-grid");
 const statusMessage = document.querySelector("#meeting-status-message");
 
+const detailsDialog = document.querySelector("#meeting-details-dialog");
+const detailsCloseButton = document.querySelector("#meeting-details-close");
+const detailsTitle = document.querySelector("#meeting-details-title");
+const detailsTime = document.querySelector("#meeting-details-time");
+const detailsLocationRow = document.querySelector("#meeting-details-location-row");
+const detailsLocation = document.querySelector("#meeting-details-location");
+const detailsRecurrenceRow = document.querySelector("#meeting-details-recurrence-row");
+const detailsDescriptionRow = document.querySelector("#meeting-details-description-row");
+const detailsDescription = document.querySelector("#meeting-details-description");
+
 let selectedTimeZone = DEFAULT_TIME_ZONE;
 let selectedView = "week";
 let anchorDate = new Date();
 let events = [];
+let lastFetchedAt = null;
 
 initialize();
 
@@ -68,6 +79,15 @@ function validateElements() {
     meetingMonthWrap,
     meetingMonthGrid,
     statusMessage,
+    detailsDialog,
+    detailsCloseButton,
+    detailsTitle,
+    detailsTime,
+    detailsLocationRow,
+    detailsLocation,
+    detailsRecurrenceRow,
+    detailsDescriptionRow,
+    detailsDescription,
   };
 
   const missing = Object.entries(required)
@@ -132,6 +152,12 @@ function attachEventListeners() {
     localStorage.setItem(TIME_ZONE_STORAGE_KEY, selectedTimeZone);
     renderCurrentView();
     updateSyncStatusFromCurrentText();
+  });
+
+  detailsCloseButton.addEventListener("click", closeMeetingDetails);
+
+  detailsDialog.addEventListener("click", event => {
+    if (event.target === detailsDialog) closeMeetingDetails();
   });
 }
 
@@ -388,8 +414,10 @@ function getEventsForDay(day, sourceEvents) {
 }
 
 function createMeetingCard(event) {
-  const card = document.createElement("article");
-  card.className = "meeting-card";
+  const card = document.createElement("button");
+  card.className = "meeting-card meeting-event-button";
+  card.type = "button";
+  card.addEventListener("click", () => showMeetingDetails(event));
 
   const title = document.createElement("h3");
   title.textContent = event.title || "Untitled meeting";
@@ -420,8 +448,10 @@ function createMeetingCard(event) {
 }
 
 function createMonthEvent(event) {
-  const item = document.createElement("div");
+  const item = document.createElement("button");
   item.className = "meeting-month-event";
+  item.type = "button";
+  item.addEventListener("click", () => showMeetingDetails(event));
 
   const time = document.createElement("span");
   time.className = "meeting-month-event-time";
@@ -434,24 +464,49 @@ function createMonthEvent(event) {
   title.textContent = event.title || "Untitled meeting";
 
   item.append(time, title);
-  item.title = buildEventTooltip(event);
+  item.title = "Click to view details";
   return item;
 }
 
-function buildEventTooltip(event) {
-  const lines = [event.title || "Untitled meeting"];
+function showMeetingDetails(event) {
+  detailsTitle.textContent = event.title || "Untitled meeting";
 
   if (event.all_day) {
-    lines.push("All day");
+    detailsTime.textContent = formatMeetingDate(new Date(event.start)) + " · All day";
   } else {
-    lines.push(
-      `${formatMeetingTime(new Date(event.start))} – ${formatMeetingTime(new Date(event.end))}`
-    );
+    const start = new Date(event.start);
+    const end = new Date(event.end);
+    const sameDay = formatDateKeyInTimeZone(start, selectedTimeZone) ===
+      formatDateKeyInTimeZone(end, selectedTimeZone);
+
+    detailsTime.textContent = sameDay
+      ? `${formatMeetingDate(start)} · ${formatMeetingTime(start)} – ${formatMeetingTime(end)}`
+      : `${formatMeetingDateTime(start)} – ${formatMeetingDateTime(end)}`;
   }
 
-  if (event.location) lines.push(event.location);
-  if (event.recurring) lines.push("Recurring");
-  return lines.join("\n");
+  const location = String(event.location ?? "").trim();
+  detailsLocation.textContent = location;
+  detailsLocationRow.classList.toggle("hidden", !location);
+
+  detailsRecurrenceRow.classList.toggle("hidden", !event.recurring);
+
+  const description = String(event.description ?? "").trim();
+  detailsDescription.textContent = description;
+  detailsDescriptionRow.classList.toggle("hidden", !description);
+
+  if (typeof detailsDialog.showModal === "function") {
+    detailsDialog.showModal();
+  } else {
+    detailsDialog.setAttribute("open", "");
+  }
+}
+
+function closeMeetingDetails() {
+  if (typeof detailsDialog.close === "function" && detailsDialog.open) {
+    detailsDialog.close();
+  } else {
+    detailsDialog.removeAttribute("open");
+  }
 }
 
 function formatMeetingTime(date) {
@@ -470,6 +525,30 @@ function formatMeetingTimeCompact(date) {
     hour: "numeric",
     minute: "2-digit",
     hour12: true,
+  }).format(date);
+}
+
+function formatMeetingDate(date) {
+  return new Intl.DateTimeFormat("en-US", {
+    timeZone: selectedTimeZone,
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  }).format(date);
+}
+
+function formatMeetingDateTime(date) {
+  return new Intl.DateTimeFormat("en-US", {
+    timeZone: selectedTimeZone,
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+    timeZoneName: "short",
   }).format(date);
 }
 
@@ -494,8 +573,6 @@ function formatWeekRange(start, end) {
 
   return `${startText} – ${endText}`;
 }
-
-let lastFetchedAt = null;
 
 function updateSyncStatus(timestamp) {
   const date = new Date(timestamp);
@@ -525,10 +602,7 @@ function updateSyncStatusFromCurrentText() {
 function getWeekStart(date) {
   const result = new Date(date);
   result.setHours(12, 0, 0, 0);
-
-  const day = result.getDay();
-  const difference = day === 0 ? -6 : 1 - day;
-  result.setDate(result.getDate() + difference);
+  result.setDate(result.getDate() - result.getDay());
   return result;
 }
 
