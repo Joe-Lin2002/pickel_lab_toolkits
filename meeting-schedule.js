@@ -1,1079 +1,1173 @@
-"use strict";
+import crypto from "node:crypto";
+import ical from "node-ical";
 
 /* =========================================================
    Configuration
    ========================================================= */
 
-const MEETINGS_API_URL =
-  "/api/meetings";
+const COOKIE_NAME =
+  "pickel_lab_session";
 
-const DEFAULT_TIME_ZONE =
-  "America/Chicago";
+const SESSION_PURPOSE =
+  "pickel-lab-schedule";
 
-const TIME_ZONE_STORAGE_KEY =
-  "pickel_lab_meeting_timezone";
+const SESSION_SECRET =
+  process.env.SESSION_SECRET;
 
-const AUTO_REFRESH_INTERVAL =
-  60 * 1000;
-
-const SUPPORTED_TIME_ZONES =
-  new Set([
-    "America/New_York",
-    "America/Chicago",
-    "America/Denver",
-    "America/Los_Angeles",
-  ]);
-
-const DAY_NAMES = [
-  "Monday",
-  "Tuesday",
-  "Wednesday",
-  "Thursday",
-  "Friday",
-  "Saturday",
-  "Sunday",
-];
+const ICS_URL =
+  process.env.MEETING_ICS_URL;
 
 /* =========================================================
-   Elements
+   Main
    ========================================================= */
 
-const previousWeekButton =
-  document.querySelector(
-    "#previous-week"
-  );
+export default async function handler(
+  request,
+  response
+) {
+  setSecurityHeaders(response);
 
-const currentWeekButton =
-  document.querySelector(
-    "#current-week"
-  );
-
-const nextWeekButton =
-  document.querySelector(
-    "#next-week"
-  );
-
-const refreshMeetingsButton =
-  document.querySelector(
-    "#refresh-meetings"
-  );
-
-const timezoneSelect =
-  document.querySelector(
-    "#meeting-timezone-select"
-  );
-
-const weekLabel =
-  document.querySelector(
-    "#meeting-week-label"
-  );
-
-const syncStatus =
-  document.querySelector(
-    "#meeting-sync-status"
-  );
-
-const meetingWeek =
-  document.querySelector(
-    "#meeting-week"
-  );
-
-const statusMessage =
-  document.querySelector(
-    "#meeting-status-message"
-  );
-
-/* =========================================================
-   State
-   ========================================================= */
-
-let selectedTimeZone =
-  DEFAULT_TIME_ZONE;
-
-let weekAnchor =
-  new Date();
-
-let events = [];
-
-let refreshTimer = null;
-
-/* =========================================================
-   Initialization
-   ========================================================= */
-
-initialize();
-
-async function initialize() {
-  validateElements();
-
-  initializeTimeZone();
-
-  attachEventListeners();
-
-  updateTimeZoneLabels();
-
-  await loadMeetings();
-
-  refreshTimer =
-    window.setInterval(
-      () => {
-        loadMeetings({
-          silent: true,
-        });
-      },
-      AUTO_REFRESH_INTERVAL
+  if (request.method !== "GET") {
+    response.setHeader(
+      "Allow",
+      "GET"
     );
-}
 
-/* =========================================================
-   Validation
-   ========================================================= */
-
-function validateElements() {
-  const required = {
-    previousWeekButton,
-    currentWeekButton,
-    nextWeekButton,
-    refreshMeetingsButton,
-    timezoneSelect,
-    weekLabel,
-    syncStatus,
-    meetingWeek,
-    statusMessage,
-  };
-
-  const missing =
-    Object.entries(required)
-      .filter(
-        ([, element]) =>
-          !element
-      )
-      .map(
-        ([name]) =>
-          name
-      );
-
-  if (missing.length > 0) {
-    throw new Error(
-      "Missing HTML elements: " +
-      missing.join(", ")
-    );
+    return response
+      .status(405)
+      .json({
+        error:
+          "Method not allowed.",
+      });
   }
 
-  if (
-    !window.pickelAuth ||
-    typeof window.pickelAuth.fetch !==
-      "function"
-  ) {
-    throw new Error(
-      "auth-guard.js was not loaded correctly."
+  /* -------------------------------------------------------
+     Environment
+     ------------------------------------------------------- */
+
+  if (!SESSION_SECRET) {
+    console.error(
+      "SESSION_SECRET is missing."
     );
+
+    return response
+      .status(500)
+      .json({
+        error:
+          "Authentication service is not configured.",
+      });
   }
-}
 
-/* =========================================================
-   Events
-   ========================================================= */
-
-function attachEventListeners() {
-  previousWeekButton.addEventListener(
-    "click",
-    async () => {
-      weekAnchor =
-        addDays(
-          weekAnchor,
-          -7
-        );
-
-      await loadMeetings();
-    }
-  );
-
-  nextWeekButton.addEventListener(
-    "click",
-    async () => {
-      weekAnchor =
-        addDays(
-          weekAnchor,
-          7
-        );
-
-      await loadMeetings();
-    }
-  );
-
-  currentWeekButton.addEventListener(
-    "click",
-    async () => {
-      weekAnchor =
-        new Date();
-
-      await loadMeetings();
-    }
-  );
-
-  refreshMeetingsButton.addEventListener(
-    "click",
-    () => {
-      loadMeetings();
-    }
-  );
-
-  timezoneSelect.addEventListener(
-    "change",
-    () => {
-      selectedTimeZone =
-        SUPPORTED_TIME_ZONES.has(
-          timezoneSelect.value
-        )
-          ? timezoneSelect.value
-          : DEFAULT_TIME_ZONE;
-
-      timezoneSelect.value =
-        selectedTimeZone;
-
-      localStorage.setItem(
-        TIME_ZONE_STORAGE_KEY,
-        selectedTimeZone
-      );
-
-      renderWeek();
-    }
-  );
-
-  window.addEventListener(
-    "beforeunload",
-    () => {
-      if (refreshTimer) {
-        clearInterval(
-          refreshTimer
-        );
-      }
-    }
-  );
-}
-
-/* =========================================================
-   Time zone
-   ========================================================= */
-
-function initializeTimeZone() {
-  const saved =
-    localStorage.getItem(
-      TIME_ZONE_STORAGE_KEY
+  if (!ICS_URL) {
+    console.error(
+      "MEETING_ICS_URL is missing."
     );
 
+    return response
+      .status(500)
+      .json({
+        error:
+          "Meeting calendar URL is not configured.",
+      });
+  }
+
+  /* -------------------------------------------------------
+     Authentication
+     ------------------------------------------------------- */
+
   if (
-    saved &&
-    SUPPORTED_TIME_ZONES.has(
-      saved
+    !verifyRequestSession(
+      request
     )
   ) {
-    selectedTimeZone =
-      saved;
-  } else {
-    selectedTimeZone =
-      detectTimeZone();
+    return response
+      .status(401)
+      .json({
+        error:
+          "Authentication required.",
+      });
   }
 
-  timezoneSelect.value =
-    selectedTimeZone;
-}
+  /* -------------------------------------------------------
+     Date range
+     ------------------------------------------------------- */
 
-function detectTimeZone() {
-  let zone = "";
+  const start =
+    parseDate(
+      request.query.start
+    );
+
+  const end =
+    parseDate(
+      request.query.end
+    );
+
+  if (
+    !start ||
+    !end ||
+    start >= end
+  ) {
+    return response
+      .status(400)
+      .json({
+        error:
+          "Invalid date range.",
+      });
+  }
+
+  const maximumRange =
+    180 *
+    24 *
+    60 *
+    60 *
+    1000;
+
+  if (
+    end.getTime() -
+      start.getTime() >
+    maximumRange
+  ) {
+    return response
+      .status(400)
+      .json({
+        error:
+          "Requested date range is too large.",
+      });
+  }
+
+  /* -------------------------------------------------------
+     Fetch Outlook ICS
+     ------------------------------------------------------- */
+
+  let icsText;
 
   try {
-    zone =
-      Intl.DateTimeFormat()
-        .resolvedOptions()
-        .timeZone;
-  } catch {
-    return DEFAULT_TIME_ZONE;
-  }
+    const icsResponse =
+      await fetch(
+        ICS_URL,
+        {
+          method:
+            "GET",
 
-  const aliases = {
-    "US/Eastern":
-      "America/New_York",
+          headers: {
+            Accept:
+              "text/calendar,text/plain;q=0.9,*/*;q=0.8",
 
-    "US/Central":
-      "America/Chicago",
+            "User-Agent":
+              "Mozilla/5.0 Pickel-Lab-Schedule/1.0",
+          },
 
-    "US/Mountain":
-      "America/Denver",
+          redirect:
+            "follow",
 
-    "US/Pacific":
-      "America/Los_Angeles",
-
-    "America/Detroit":
-      "America/New_York",
-
-    "America/Indiana/Indianapolis":
-      "America/New_York",
-
-    "America/Boise":
-      "America/Denver",
-  };
-
-  zone =
-    aliases[zone] ??
-    zone;
-
-  return SUPPORTED_TIME_ZONES.has(
-    zone
-  )
-    ? zone
-    : DEFAULT_TIME_ZONE;
-}
-
-function updateTimeZoneLabels() {
-  const names = {
-    "America/New_York":
-      "Eastern Time",
-
-    "America/Chicago":
-      "Central Time",
-
-    "America/Denver":
-      "Mountain Time",
-
-    "America/Los_Angeles":
-      "Pacific Time",
-  };
-
-  for (
-    const option
-    of timezoneSelect.options
-  ) {
-    const abbreviation =
-      getTimeZoneAbbreviation(
-        option.value
+          cache:
+            "no-store",
+        }
       );
 
-    option.textContent =
-      `${names[option.value]} (${abbreviation})`;
+    console.log(
+      "Outlook ICS response:",
+      icsResponse.status,
+      icsResponse.statusText,
+      icsResponse.headers.get(
+        "content-type"
+      )
+    );
+
+    if (!icsResponse.ok) {
+      const responseText =
+        await safeReadText(
+          icsResponse
+        );
+
+      console.error(
+        "Outlook calendar request failed.",
+        {
+          status:
+            icsResponse.status,
+
+          statusText:
+            icsResponse.statusText,
+
+          body:
+            responseText
+              .slice(
+                0,
+                500
+              ),
+        }
+      );
+
+      return response
+        .status(502)
+        .json({
+          error:
+            `Outlook calendar returned HTTP ${icsResponse.status}.`,
+        });
+    }
+
+    icsText =
+      await icsResponse.text();
+
+  } catch (error) {
+    console.error(
+      "Could not fetch Outlook ICS:",
+      error
+    );
+
+    return response
+      .status(502)
+      .json({
+        error:
+          "Could not connect to the Outlook calendar.",
+      });
+  }
+
+  /* -------------------------------------------------------
+     Basic validation
+     ------------------------------------------------------- */
+
+  if (
+    !icsText ||
+    !icsText.includes(
+      "BEGIN:VCALENDAR"
+    )
+  ) {
+    console.error(
+      "Invalid ICS response:",
+      icsText
+        ?.slice(
+          0,
+          500
+        )
+    );
+
+    return response
+      .status(502)
+      .json({
+        error:
+          "Outlook did not return a valid calendar.",
+      });
+  }
+
+  console.log(
+    "ICS downloaded successfully.",
+    "Characters:",
+    icsText.length
+  );
+
+  /* -------------------------------------------------------
+     Parse ICS
+     ------------------------------------------------------- */
+
+  let parsedCalendar;
+
+  try {
+    parsedCalendar =
+      ical.sync.parseICS(
+        icsText
+      );
+  } catch (error) {
+    console.error(
+      "ICS parsing failed:",
+      error
+    );
+
+    return response
+      .status(500)
+      .json({
+        error:
+          "The Outlook calendar was downloaded, but could not be parsed.",
+      });
+  }
+
+  /* -------------------------------------------------------
+     Expand events
+     ------------------------------------------------------- */
+
+  let events;
+
+  try {
+    events =
+      buildEvents(
+        parsedCalendar,
+        start,
+        end
+      );
+  } catch (error) {
+    console.error(
+      "Event processing failed:",
+      error
+    );
+
+    return response
+      .status(500)
+      .json({
+        error:
+          "The calendar was parsed, but its events could not be processed.",
+      });
+  }
+
+  /* -------------------------------------------------------
+     Response
+     ------------------------------------------------------- */
+
+  return response
+    .status(200)
+    .json({
+      events,
+
+      fetched_at:
+        new Date()
+          .toISOString(),
+
+      source_updated:
+        true,
+
+      range: {
+        start:
+          start.toISOString(),
+
+        end:
+          end.toISOString(),
+      },
+    });
+}
+
+/* =========================================================
+   Build event list
+   ========================================================= */
+
+function buildEvents(
+  calendar,
+  rangeStart,
+  rangeEnd
+) {
+  const result = [];
+
+  for (
+    const item
+    of Object.values(
+      calendar
+    )
+  ) {
+    if (
+      !item ||
+      item.type !==
+        "VEVENT"
+    ) {
+      continue;
+    }
+
+    /*
+      Recurring event
+    */
+
+    if (
+      item.rrule &&
+      typeof item.rrule.between ===
+        "function"
+    ) {
+      addRecurringEvent(
+        result,
+        item,
+        rangeStart,
+        rangeEnd
+      );
+
+      continue;
+    }
+
+    /*
+      Normal event
+    */
+
+    const normalized =
+      normalizeNormalEvent(
+        item
+      );
+
+    if (
+      normalized &&
+      eventIntersectsRange(
+        normalized,
+        rangeStart,
+        rangeEnd
+      )
+    ) {
+      result.push(
+        normalized
+      );
+    }
+  }
+
+  result.sort(
+    (first, second) =>
+      new Date(
+        first.start
+      ).getTime() -
+      new Date(
+        second.start
+      ).getTime()
+  );
+
+  return result;
+}
+
+/* =========================================================
+   Normal event
+   ========================================================= */
+
+function normalizeNormalEvent(
+  event
+) {
+  const start =
+    toValidDate(
+      event.start
+    );
+
+  if (!start) {
+    return null;
+  }
+
+  let end =
+    toValidDate(
+      event.end
+    );
+
+  if (!end) {
+    end =
+      new Date(
+        start.getTime() +
+        60 *
+        60 *
+        1000
+      );
+  }
+
+  return {
+    id:
+      String(
+        event.uid ??
+        `${start.toISOString()}-${event.summary ?? ""}`
+      ),
+
+    uid:
+      String(
+        event.uid ??
+        ""
+      ),
+
+    title:
+      cleanText(
+        event.summary ??
+        "Untitled meeting"
+      ),
+
+    location:
+      cleanText(
+        getTextValue(
+          event.location
+        )
+      ),
+
+    description:
+      cleanText(
+        getTextValue(
+          event.description
+        )
+      ),
+
+    start:
+      start.toISOString(),
+
+    end:
+      end.toISOString(),
+
+    all_day:
+      isAllDayEvent(
+        event,
+        start,
+        end
+      ),
+
+    recurring:
+      false,
+  };
+}
+
+/* =========================================================
+   Recurring events
+   ========================================================= */
+
+function addRecurringEvent(
+  result,
+  event,
+  rangeStart,
+  rangeEnd
+) {
+  const originalStart =
+    toValidDate(
+      event.start
+    );
+
+  if (!originalStart) {
+    return;
+  }
+
+  const originalEnd =
+    toValidDate(
+      event.end
+    );
+
+  const duration =
+    originalEnd
+      ? Math.max(
+          0,
+          originalEnd.getTime() -
+          originalStart.getTime()
+        )
+      : 60 *
+        60 *
+        1000;
+
+  /*
+    Add one day of margin because a meeting near midnight
+    can move between dates when the user changes time zone.
+  */
+
+  const expansionStart =
+    new Date(
+      rangeStart.getTime() -
+      24 *
+      60 *
+      60 *
+      1000
+    );
+
+  const expansionEnd =
+    new Date(
+      rangeEnd.getTime() +
+      24 *
+      60 *
+      60 *
+      1000
+    );
+
+  let occurrenceDates = [];
+
+  try {
+    occurrenceDates =
+      event.rrule.between(
+        expansionStart,
+        expansionEnd,
+        true
+      );
+  } catch (error) {
+    console.error(
+      "RRULE expansion failed:",
+      event.uid,
+      error
+    );
+
+    /*
+      Don't allow one malformed recurring event to break
+      the entire calendar.
+    */
+
+    return;
+  }
+
+  for (
+    const occurrenceStartRaw
+    of occurrenceDates
+  ) {
+    let occurrenceStart =
+      toValidDate(
+        occurrenceStartRaw
+      );
+
+    if (!occurrenceStart) {
+      continue;
+    }
+
+    /*
+      node-ical stores recurrence exceptions using date keys.
+    */
+
+    if (
+      isExcludedOccurrence(
+        event,
+        occurrenceStart
+      )
+    ) {
+      continue;
+    }
+
+    const recurrenceOverride =
+      findRecurrenceOverride(
+        event,
+        occurrenceStart
+      );
+
+    let title =
+      event.summary ??
+      "Untitled meeting";
+
+    let location =
+      event.location;
+
+    let description =
+      event.description;
+
+    let occurrenceEnd =
+      new Date(
+        occurrenceStart.getTime() +
+        duration
+      );
+
+    if (recurrenceOverride) {
+      const overrideStart =
+        toValidDate(
+          recurrenceOverride.start
+        );
+
+      const overrideEnd =
+        toValidDate(
+          recurrenceOverride.end
+        );
+
+      if (overrideStart) {
+        occurrenceStart =
+          overrideStart;
+      }
+
+      if (overrideEnd) {
+        occurrenceEnd =
+          overrideEnd;
+      }
+
+      if (
+        recurrenceOverride.summary
+      ) {
+        title =
+          recurrenceOverride.summary;
+      }
+
+      if (
+        recurrenceOverride.location
+      ) {
+        location =
+          recurrenceOverride.location;
+      }
+
+      if (
+        recurrenceOverride.description
+      ) {
+        description =
+          recurrenceOverride.description;
+      }
+    }
+
+    const normalized = {
+      id:
+        `${event.uid ?? "meeting"}|${occurrenceStart.toISOString()}`,
+
+      uid:
+        String(
+          event.uid ??
+          ""
+        ),
+
+      title:
+        cleanText(
+          title
+        ),
+
+      location:
+        cleanText(
+          getTextValue(
+            location
+          )
+        ),
+
+      description:
+        cleanText(
+          getTextValue(
+            description
+          )
+        ),
+
+      start:
+        occurrenceStart
+          .toISOString(),
+
+      end:
+        occurrenceEnd
+          .toISOString(),
+
+      all_day:
+        isAllDayEvent(
+          event,
+          occurrenceStart,
+          occurrenceEnd
+        ),
+
+      recurring:
+        true,
+    };
+
+    if (
+      eventIntersectsRange(
+        normalized,
+        rangeStart,
+        rangeEnd
+      )
+    ) {
+      result.push(
+        normalized
+      );
+    }
   }
 }
 
-function getTimeZoneAbbreviation(
-  timeZone
+/* =========================================================
+   Recurrence exclusions
+   ========================================================= */
+
+function isExcludedOccurrence(
+  event,
+  date
+) {
+  if (!event.exdate) {
+    return false;
+  }
+
+  const target =
+    date.getTime();
+
+  for (
+    const excluded
+    of Object.values(
+      event.exdate
+    )
+  ) {
+    const excludedDate =
+      toValidDate(
+        excluded
+      );
+
+    if (
+      excludedDate &&
+      Math.abs(
+        excludedDate.getTime() -
+        target
+      ) <
+      1000
+    ) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+function findRecurrenceOverride(
+  event,
+  date
+) {
+  if (!event.recurrences) {
+    return null;
+  }
+
+  const target =
+    date.getTime();
+
+  for (
+    const recurrence
+    of Object.values(
+      event.recurrences
+    )
+  ) {
+    const recurrenceDate =
+      toValidDate(
+        recurrence.recurrenceid ??
+        recurrence.start
+      );
+
+    if (
+      recurrenceDate &&
+      Math.abs(
+        recurrenceDate.getTime() -
+        target
+      ) <
+      1000
+    ) {
+      return recurrence;
+    }
+  }
+
+  return null;
+}
+
+/* =========================================================
+   Utilities
+   ========================================================= */
+
+function eventIntersectsRange(
+  event,
+  rangeStart,
+  rangeEnd
+) {
+  const start =
+    new Date(
+      event.start
+    );
+
+  const end =
+    new Date(
+      event.end
+    );
+
+  return (
+    start < rangeEnd &&
+    end > rangeStart
+  );
+}
+
+function isAllDayEvent(
+  event,
+  start,
+  end
+) {
+  if (
+    event.datetype ===
+    "date"
+  ) {
+    return true;
+  }
+
+  if (
+    event.start?.dateOnly ===
+    true
+  ) {
+    return true;
+  }
+
+  /*
+    Fall back conservatively.
+  */
+
+  return (
+    start.getHours() === 0 &&
+    start.getMinutes() === 0 &&
+    end.getHours() === 0 &&
+    end.getMinutes() === 0 &&
+    (
+      end.getTime() -
+      start.getTime()
+    ) >=
+      24 *
+      60 *
+      60 *
+      1000
+  );
+}
+
+function getTextValue(
+  value
+) {
+  if (
+    value === null ||
+    value === undefined
+  ) {
+    return "";
+  }
+
+  if (
+    typeof value ===
+      "string"
+  ) {
+    return value;
+  }
+
+  if (
+    typeof value ===
+      "object" &&
+    typeof value.val ===
+      "string"
+  ) {
+    return value.val;
+  }
+
+  return String(
+    value
+  );
+}
+
+function cleanText(
+  value
+) {
+  return String(
+    value ?? ""
+  )
+    .replace(
+      /\r\n/g,
+      "\n"
+    )
+    .replace(
+      /\\n/g,
+      "\n"
+    )
+    .replace(
+      /\\,/g,
+      ","
+    )
+    .replace(
+      /\\;/g,
+      ";"
+    )
+    .trim();
+}
+
+function toValidDate(
+  value
+) {
+  if (!value) {
+    return null;
+  }
+
+  const date =
+    value instanceof Date
+      ? new Date(
+          value.getTime()
+        )
+      : new Date(value);
+
+  return Number.isNaN(
+    date.getTime()
+  )
+    ? null
+    : date;
+}
+
+function parseDate(
+  value
+) {
+  if (
+    typeof value !==
+      "string"
+  ) {
+    return null;
+  }
+
+  return toValidDate(
+    value
+  );
+}
+
+async function safeReadText(
+  response
 ) {
   try {
-    const parts =
-      new Intl.DateTimeFormat(
-        "en-US",
-        {
-          timeZone,
-          timeZoneName:
-            "short",
-        }
-      )
-        .formatToParts(
-          new Date()
-        );
-
-    return (
-      parts.find(
-        item =>
-          item.type ===
-          "timeZoneName"
-      )?.value ??
-      ""
-    );
+    return await response.text();
   } catch {
     return "";
   }
 }
 
 /* =========================================================
-   Load meetings
+   Authentication
    ========================================================= */
 
-async function loadMeetings(
-  options = {}
+function verifyRequestSession(
+  request
 ) {
-  const silent =
-    options.silent === true;
-
-  if (!silent) {
-    setBusy(true);
-
-    setStatus(
-      "Loading meeting schedule..."
+  const cookies =
+    parseCookies(
+      request.headers.cookie ??
+      ""
     );
-  } else {
-    syncStatus.textContent =
-      "Checking for updates...";
+
+  return verifySessionToken(
+    cookies[
+      COOKIE_NAME
+    ]
+  );
+}
+
+function verifySessionToken(
+  token
+) {
+  if (
+    typeof token !==
+      "string"
+  ) {
+    return false;
   }
 
-  const weekStart =
-    getWeekStart(
-      weekAnchor
-    );
+  const parts =
+    token.split(".");
 
-  /*
-    Add a safety margin around the requested week because
-    timezone conversion can move an event across a day edge.
-  */
+  if (
+    parts.length !== 2
+  ) {
+    return false;
+  }
 
-  const requestStart =
-    addDays(
-      weekStart,
-      -2
-    );
+  const [
+    payloadText,
+    suppliedSignature,
+  ] = parts;
 
-  const requestEnd =
-    addDays(
-      weekStart,
-      9
-    );
+  const expectedSignature =
+    crypto
+      .createHmac(
+        "sha256",
+        SESSION_SECRET
+      )
+      .update(
+        payloadText
+      )
+      .digest(
+        "base64url"
+      );
 
-  const query =
-    new URLSearchParams({
-      start:
-        requestStart
-          .toISOString(),
-
-      end:
-        requestEnd
-          .toISOString(),
-    });
+  if (
+    !safeEqual(
+      suppliedSignature,
+      expectedSignature
+    )
+  ) {
+    return false;
+  }
 
   try {
-    const response =
-      await window
-        .pickelAuth
-        .fetch(
-          `${MEETINGS_API_URL}?${query.toString()}`,
-          {
-            method: "GET",
-          }
-        );
-
-    let payload = {};
-
-    try {
-      payload =
-        await response.json();
-    } catch {
-      payload = {};
-    }
-
-    if (!response.ok) {
-      throw new Error(
-        payload.error ??
-        "Could not load meeting calendar."
-      );
-    }
-
-    events =
-      Array.isArray(
-        payload.events
-      )
-        ? payload.events
-        : [];
-
-    renderWeek();
-
-    updateSyncStatus(
-      payload.fetched_at
-    );
-
-    setStatus("");
-  } catch (error) {
-    console.error(
-      "Meeting schedule error:",
-      error
-    );
-
-    if (
-      error?.message !==
-      "Authentication required."
-    ) {
-      setStatus(
-        error?.message ??
-        "Could not load meeting schedule."
-      );
-
-      syncStatus.textContent =
-        "Unable to update calendar";
-    }
-  } finally {
-    if (!silent) {
-      setBusy(false);
-    }
-  }
-}
-
-/* =========================================================
-   Render
-   ========================================================= */
-
-function renderWeek() {
-  meetingWeek.innerHTML =
-    "";
-
-  const weekStart =
-    getWeekStart(
-      weekAnchor
-    );
-
-  const weekEnd =
-    addDays(
-      weekStart,
-      7
-    );
-
-  weekLabel.textContent =
-    formatWeekRange(
-      weekStart,
-      addDays(
-        weekStart,
-        6
-      )
-    );
-
-  for (
-    let dayOffset = 0;
-    dayOffset < 7;
-    dayOffset += 1
-  ) {
-    const dayDate =
-      addDays(
-        weekStart,
-        dayOffset
-      );
-
-    const column =
-      document.createElement(
-        "section"
-      );
-
-    column.className =
-      "meeting-day";
-
-    if (
-      isTodayInSelectedTimeZone(
-        dayDate
-      )
-    ) {
-      column.classList.add(
-        "today"
-      );
-    }
-
-    const header =
-      document.createElement(
-        "header"
-      );
-
-    header.className =
-      "meeting-day-header";
-
-    const dayName =
-      document.createElement(
-        "strong"
-      );
-
-    dayName.textContent =
-      DAY_NAMES[
-        dayOffset
-      ];
-
-    const dateText =
-      document.createElement(
-        "span"
-      );
-
-    dateText.textContent =
-      formatDateOnly(
-        dayDate
-      );
-
-    header.append(
-      dayName,
-      dateText
-    );
-
-    column.appendChild(
-      header
-    );
-
-    const dayEvents =
-      getEventsForDay(
-        dayDate,
-        events
-      );
-
-    if (
-      dayEvents.length === 0
-    ) {
-      const empty =
-        document.createElement(
-          "p"
-        );
-
-      empty.className =
-        "meeting-empty";
-
-      empty.textContent =
-        "No meetings";
-
-      column.appendChild(
-        empty
-      );
-    } else {
-      for (
-        const event
-        of dayEvents
-      ) {
-        column.appendChild(
-          createMeetingCard(
-            event
+    const payload =
+      JSON.parse(
+        Buffer
+          .from(
+            payloadText,
+            "base64url"
           )
-        );
-      }
-    }
-
-    meetingWeek.appendChild(
-      column
-    );
-  }
-}
-
-/* =========================================================
-   Event grouping
-   ========================================================= */
-
-function getEventsForDay(
-  day,
-  sourceEvents
-) {
-  const targetKey =
-    formatDateKey(
-      day
-    );
-
-  return sourceEvents
-    .filter(
-      event => {
-        const start =
-          new Date(
-            event.start
-          );
-
-        if (
-          Number.isNaN(
-            start.getTime()
+          .toString(
+            "utf8"
           )
-        ) {
-          return false;
-        }
+      );
 
-        return (
-          formatDateKeyInTimeZone(
-            start,
-            selectedTimeZone
-          ) ===
-          targetKey
-        );
-      }
-    )
-    .sort(
-      (first, second) =>
-        new Date(
-          first.start
-        ) -
-        new Date(
-          second.start
+    return (
+      payload.purpose ===
+        SESSION_PURPOSE &&
+      Number.isInteger(
+        payload.exp
+      ) &&
+      payload.exp >
+        Math.floor(
+          Date.now() /
+          1000
         )
     );
+  } catch {
+    return false;
+  }
 }
 
-/* =========================================================
-   Meeting card
-   ========================================================= */
-
-function createMeetingCard(
-  event
+function parseCookies(
+  header
 ) {
-  const card =
-    document.createElement(
-      "article"
-    );
+  const result = {};
 
-  card.className =
-    "meeting-card";
+  for (
+    const item
+    of String(
+      header
+    ).split(";")
+  ) {
+    const separator =
+      item.indexOf("=");
 
-  const title =
-    document.createElement(
-      "h3"
-    );
-
-  title.textContent =
-    event.title ||
-    "Untitled meeting";
-
-  card.appendChild(
-    title
-  );
-
-  const time =
-    document.createElement(
-      "div"
-    );
-
-  time.className =
-    "meeting-time";
-
-  if (event.all_day) {
-    time.textContent =
-      "All day";
-  } else {
-    const start =
-      new Date(
-        event.start
-      );
-
-    const end =
-      new Date(
-        event.end
-      );
-
-    time.textContent =
-      `${formatMeetingTime(start)} – ` +
-      `${formatMeetingTime(end)}`;
-  }
-
-  card.appendChild(
-    time
-  );
-
-  if (event.location) {
-    const location =
-      document.createElement(
-        "div"
-      );
-
-    location.className =
-      "meeting-location";
-
-    location.textContent =
-      event.location;
-
-    card.appendChild(
-      location
-    );
-  }
-
-  if (event.recurring) {
-    const recurring =
-      document.createElement(
-        "span"
-      );
-
-    recurring.className =
-      "meeting-recurring";
-
-    recurring.textContent =
-      "Recurring";
-
-    card.appendChild(
-      recurring
-    );
-  }
-
-  return card;
-}
-
-/* =========================================================
-   Formatting
-   ========================================================= */
-
-function formatMeetingTime(
-  date
-) {
-  return new Intl.DateTimeFormat(
-    "en-US",
-    {
-      timeZone:
-        selectedTimeZone,
-
-      hour:
-        "numeric",
-
-      minute:
-        "2-digit",
-
-      hour12:
-        true,
-
-      timeZoneName:
-        "short",
+    if (
+      separator < 0
+    ) {
+      continue;
     }
-  ).format(date);
-}
 
-function formatDateOnly(
-  date
-) {
-  return new Intl.DateTimeFormat(
-    "en-US",
-    {
-      month:
-        "short",
+    const name =
+      item
+        .slice(
+          0,
+          separator
+        )
+        .trim();
 
-      day:
-        "numeric",
+    const value =
+      item
+        .slice(
+          separator + 1
+        )
+        .trim();
+
+    if (name) {
+      result[name] =
+        value;
     }
-  ).format(date);
+  }
+
+  return result;
 }
 
-function formatWeekRange(
-  start,
-  end
+function safeEqual(
+  first,
+  second
 ) {
-  const startText =
-    new Intl.DateTimeFormat(
-      "en-US",
-      {
-        month:
-          "short",
+  const firstBuffer =
+    Buffer.from(
+      String(first)
+    );
 
-        day:
-          "numeric",
-      }
-    ).format(start);
-
-  const endText =
-    new Intl.DateTimeFormat(
-      "en-US",
-      {
-        month:
-          "short",
-
-        day:
-          "numeric",
-
-        year:
-          "numeric",
-      }
-    ).format(end);
-
-  return (
-    `${startText} – ${endText}`
-  );
-}
-
-function updateSyncStatus(
-  timestamp
-) {
-  const date =
-    new Date(
-      timestamp
+  const secondBuffer =
+    Buffer.from(
+      String(second)
     );
 
   if (
-    Number.isNaN(
-      date.getTime()
-    )
+    firstBuffer.length !==
+      secondBuffer.length
   ) {
-    syncStatus.textContent =
-      "Calendar updated";
-
-    return;
+    return false;
   }
 
-  syncStatus.textContent =
-    "Last synced " +
-    new Intl.DateTimeFormat(
-      "en-US",
-      {
-        timeZone:
-          selectedTimeZone,
-
-        hour:
-          "numeric",
-
-        minute:
-          "2-digit",
-
-        second:
-          "2-digit",
-
-        timeZoneName:
-          "short",
-      }
-    ).format(date);
+  return crypto
+    .timingSafeEqual(
+      firstBuffer,
+      secondBuffer
+    );
 }
 
 /* =========================================================
-   Week utilities
+   Headers
    ========================================================= */
 
-function getWeekStart(
-  date
+function setSecurityHeaders(
+  response
 ) {
-  const result =
-    new Date(
-      date
-    );
-
-  result.setHours(
-    12,
-    0,
-    0,
-    0
+  response.setHeader(
+    "Cache-Control",
+    "no-store, no-cache, must-revalidate"
   );
 
-  const day =
-    result.getDay();
-
-  const difference =
-    day === 0
-      ? -6
-      : 1 - day;
-
-  result.setDate(
-    result.getDate() +
-    difference
+  response.setHeader(
+    "Pragma",
+    "no-cache"
   );
 
-  return result;
-}
-
-function addDays(
-  date,
-  days
-) {
-  const result =
-    new Date(
-      date
-    );
-
-  result.setDate(
-    result.getDate() +
-    days
+  response.setHeader(
+    "Expires",
+    "0"
   );
 
-  return result;
-}
-
-function formatDateKey(
-  date
-) {
-  const year =
-    date.getFullYear();
-
-  const month =
-    String(
-      date.getMonth() + 1
-    ).padStart(
-      2,
-      "0"
-    );
-
-  const day =
-    String(
-      date.getDate()
-    ).padStart(
-      2,
-      "0"
-    );
-
-  return (
-    `${year}-${month}-${day}`
+  response.setHeader(
+    "X-Content-Type-Options",
+    "nosniff"
   );
-}
-
-function formatDateKeyInTimeZone(
-  date,
-  timeZone
-) {
-  const parts =
-    new Intl.DateTimeFormat(
-      "en-CA",
-      {
-        timeZone,
-
-        year:
-          "numeric",
-
-        month:
-          "2-digit",
-
-        day:
-          "2-digit",
-      }
-    )
-      .formatToParts(
-        date
-      );
-
-  const values = {};
-
-  for (
-    const part
-    of parts
-  ) {
-    if (
-      part.type !==
-      "literal"
-    ) {
-      values[
-        part.type
-      ] =
-        part.value;
-    }
-  }
-
-  return (
-    `${values.year}-` +
-    `${values.month}-` +
-    `${values.day}`
-  );
-}
-
-function isTodayInSelectedTimeZone(
-  date
-) {
-  return (
-    formatDateKey(date) ===
-    formatDateKeyInTimeZone(
-      new Date(),
-      selectedTimeZone
-    )
-  );
-}
-
-/* =========================================================
-   UI state
-   ========================================================= */
-
-function setBusy(
-  busy
-) {
-  previousWeekButton.disabled =
-    busy;
-
-  currentWeekButton.disabled =
-    busy;
-
-  nextWeekButton.disabled =
-    busy;
-
-  refreshMeetingsButton.disabled =
-    busy;
-
-  refreshMeetingsButton.textContent =
-    busy
-      ? "Refreshing..."
-      : "Refresh";
-}
-
-function setStatus(
-  message
-) {
-  statusMessage.textContent =
-    message;
 }
