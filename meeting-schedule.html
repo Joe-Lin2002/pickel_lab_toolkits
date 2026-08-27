@@ -1,208 +1,74 @@
 <!DOCTYPE html>
-<html
-  lang="en"
-  class="protected-page"
->
+<html lang="en" class="protected-page">
 <head>
   <meta charset="UTF-8">
-
-  <meta
-    name="viewport"
-    content="width=device-width, initial-scale=1.0"
-  >
-
-  <title>
-    Pickel Lab Meeting Schedule
-  </title>
-
-  <link
-    rel="stylesheet"
-    href="/site.css?v=1.0-20260827"
-  >
-
-  <script
-    src="/auth-guard.js?v=1.0-20260827"
-  ></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Meeting Schedule · Pickel Lab Toolkits</title>
+  <link rel="stylesheet" href="/site.css?v=1.1">
+  <link rel="stylesheet" href="/site-shell.css?v=1.1">
+  <script src="/auth-guard.js?v=1.1"></script>
+  <script src="/site-shell.js?v=1.1" defer></script>
 </head>
-
 <body>
+  <pickel-site-banner></pickel-site-banner>
 
   <main class="app">
-
-    <header class="page-header">
-
-      <div>
-        <h1>
-          Meeting Schedule
-        </h1>
-
-        <p>
-          Pickel Lab
-        </p>
-      </div>
-
-      <div class="page-links">
-
-        <a
-          class="schedule-link"
-          href="/"
-        >
-          Home
-        </a>
-
-        <a
-          class="schedule-link"
-          href="/equipment-schedule.html"
-        >
-          Equipment Schedule
-        </a>
-
-        <a
-          class="schedule-link"
-          href="/availability.html"
-        >
-          Weekly Availability
-        </a>
-
-      </div>
-
+    <header class="page-title-block">
+      <h1>Meeting Schedule</h1>
+      <p>View the shared meeting calendar in weekly or monthly format.</p>
     </header>
 
     <section class="meeting-controls-card">
-
       <div class="meeting-navigation">
-
         <div class="meeting-week-controls">
-
-          <button
-            id="previous-week"
-            type="button"
-          >
-            ← Previous
-          </button>
-
-          <button
-            id="current-week"
-            type="button"
-          >
-            Today
-          </button>
-
-          <button
-            id="next-week"
-            type="button"
-          >
-            Next →
-          </button>
-
+          <button id="previous-period" type="button">← Previous</button>
+          <button id="current-period" type="button">Today</button>
+          <button id="next-period" type="button">Next →</button>
         </div>
 
         <div class="meeting-toolbar-right">
-
-          <div class="meeting-timezone-control">
-
-            <label for="meeting-timezone-select">
-              Time zone
-            </label>
-
-            <select id="meeting-timezone-select">
-
-              <option value="America/New_York">
-                Eastern Time
-              </option>
-
-              <option value="America/Chicago">
-                Central Time
-              </option>
-
-              <option value="America/Denver">
-                Mountain Time
-              </option>
-
-              <option value="America/Los_Angeles">
-                Pacific Time
-              </option>
-
-            </select>
-
+          <div class="meeting-view-switch" role="group" aria-label="Calendar view">
+            <button id="week-view-button" class="meeting-view-button active" type="button" aria-pressed="true">Week</button>
+            <button id="month-view-button" class="meeting-view-button" type="button" aria-pressed="false">Month</button>
           </div>
 
-          <button
-            id="refresh-meetings"
-            type="button"
-          >
-            Refresh
-          </button>
+          <div class="meeting-timezone-control">
+            <label for="meeting-timezone-select">Time zone</label>
+            <select id="meeting-timezone-select">
+              <option value="America/New_York">Eastern Time</option>
+              <option value="America/Chicago">Central Time</option>
+              <option value="America/Denver">Mountain Time</option>
+              <option value="America/Los_Angeles">Pacific Time</option>
+            </select>
+          </div>
 
+          <button id="refresh-meetings" type="button">↻ Refresh</button>
         </div>
-
       </div>
 
       <div class="meeting-range-row">
-
-        <strong id="meeting-week-label">
-          Loading...
-        </strong>
-
-        <span
-          id="meeting-sync-status"
-          class="meeting-sync-status"
-        >
-          Loading calendar...
-        </span>
-
+        <strong id="meeting-period-label">Loading...</strong>
+        <span id="meeting-sync-status" class="meeting-sync-status">Loading calendar...</span>
       </div>
-
     </section>
 
-    <section
-      id="meeting-week"
-      class="meeting-week"
-      aria-label="Meeting schedule"
-    ></section>
+    <section id="meeting-week" class="meeting-week" aria-label="Weekly meeting schedule"></section>
+    <section id="meeting-month-wrap" class="meeting-month-wrap hidden" aria-label="Monthly meeting schedule">
+      <div id="meeting-month-grid" class="meeting-month-grid"></div>
+    </section>
 
-    <p
-      id="meeting-status-message"
-      class="status-message"
-      role="status"
-      aria-live="polite"
-    ></p>
-
-    <footer class="footer">
-
-      <span>
-        Developed by Junyi Lin
-      </span>
-
-      <span class="version-badge">
-        v1.0 · August 27, 2026
-      </span>
-
-    </footer>
-
+    <p id="meeting-status-message" class="status-message" role="status" aria-live="polite"></p>
   </main>
 
+  <pickel-site-footer></pickel-site-footer>
+
   <script>
-    window.pickelAuth
-      .requireAuth()
-      .then(authenticated => {
-        if (!authenticated) {
-          return;
-        }
-
-        const script =
-          document.createElement(
-            "script"
-          );
-
-        script.src =
-          "/meeting-schedule.js?v=1.0-20260827";
-
-        document.body.appendChild(
-          script
-        );
-      });
+    window.pickelAuth.requireAuth().then(authenticated => {
+      if (!authenticated) return;
+      const script = document.createElement("script");
+      script.src = "/meeting-schedule.js?v=1.1";
+      document.body.appendChild(script);
+    });
   </script>
-
 </body>
 </html>
