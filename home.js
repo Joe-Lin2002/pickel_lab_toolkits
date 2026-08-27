@@ -1,7 +1,10 @@
 "use strict";
 
 const AUTH_API_URL = "/api/auth";
-const RECAPTCHA_SCRIPT_URL = "https://www.google.com/recaptcha/api.js?render=explicit";
+const RECAPTCHA_SCRIPT_URLS = [
+  "https://www.google.com/recaptcha/api.js?render=explicit",
+  "https://www.recaptcha.net/recaptcha/api.js?render=explicit",
+];
 
 const loginView = document.querySelector("#login-view");
 const homeView = document.querySelector("#home-view");
@@ -41,7 +44,9 @@ async function initialize() {
       await initializeRecaptcha();
     } catch (error) {
       console.error("reCAPTCHA initialization failed:", error);
-      loginError.textContent = "Could not load human verification. Please refresh the page.";
+      recaptchaSection.classList.remove("hidden");
+      recaptchaStatus.textContent = "Human verification could not be loaded.";
+      loginError.textContent = "Could not load human verification. Please refresh the page or disable content blocking for this site.";
     }
   } else {
     loginError.textContent = "Human verification is not configured.";
@@ -96,13 +101,11 @@ async function checkExistingSession() {
 }
 
 async function initializeRecaptcha() {
-  await loadRecaptchaScript();
-
-  if (!window.grecaptcha || typeof window.grecaptcha.render !== "function") {
-    throw new Error("Google reCAPTCHA did not initialize.");
-  }
-
   recaptchaSection.classList.remove("hidden");
+  recaptchaStatus.textContent = "Loading human verification...";
+
+  await loadRecaptchaScriptWithFallback();
+  await waitForRecaptcha();
 
   recaptchaWidgetId = window.grecaptcha.render(recaptchaWidget, {
     sitekey: recaptchaSiteKey,
@@ -124,31 +127,87 @@ async function initializeRecaptcha() {
     },
   });
 
+  recaptchaStatus.textContent = "Complete the verification before continuing.";
   updateLoginButtonState();
 }
 
-function loadRecaptchaScript() {
-  if (window.grecaptcha) {
-    return Promise.resolve();
+async function loadRecaptchaScriptWithFallback() {
+  if (window.grecaptcha) return;
+
+  let lastError = null;
+
+  for (const url of RECAPTCHA_SCRIPT_URLS) {
+    try {
+      await loadExternalScript(url);
+      await waitForRecaptcha();
+      return;
+    } catch (error) {
+      lastError = error;
+      removeRecaptchaScripts();
+      delete window.grecaptcha;
+    }
   }
 
+  throw lastError ?? new Error("Could not load Google reCAPTCHA.");
+}
+
+function loadExternalScript(url) {
   return new Promise((resolve, reject) => {
-    const existing = document.querySelector(`script[src="${RECAPTCHA_SCRIPT_URL}"]`);
-
-    if (existing) {
-      existing.addEventListener("load", resolve, { once: true });
-      existing.addEventListener("error", reject, { once: true });
-      return;
-    }
-
     const script = document.createElement("script");
-    script.src = RECAPTCHA_SCRIPT_URL;
+    script.src = url;
     script.async = true;
     script.defer = true;
-    script.onload = resolve;
-    script.onerror = () => reject(new Error("Could not load Google reCAPTCHA."));
+    script.crossOrigin = "anonymous";
+
+    const timeout = window.setTimeout(() => {
+      script.remove();
+      reject(new Error(`Timed out loading ${url}`));
+    }, 12000);
+
+    script.onload = () => {
+      window.clearTimeout(timeout);
+      resolve();
+    };
+
+    script.onerror = () => {
+      window.clearTimeout(timeout);
+      script.remove();
+      reject(new Error(`Could not load ${url}`));
+    };
+
     document.head.appendChild(script);
   });
+}
+
+function waitForRecaptcha(timeoutMs = 10000) {
+  return new Promise((resolve, reject) => {
+    const started = Date.now();
+
+    const check = () => {
+      if (
+        window.grecaptcha &&
+        typeof window.grecaptcha.render === "function"
+      ) {
+        resolve();
+        return;
+      }
+
+      if (Date.now() - started >= timeoutMs) {
+        reject(new Error("Google reCAPTCHA did not initialize."));
+        return;
+      }
+
+      window.setTimeout(check, 100);
+    };
+
+    check();
+  });
+}
+
+function removeRecaptchaScripts() {
+  document
+    .querySelectorAll('script[src*="/recaptcha/api.js"]')
+    .forEach(script => script.remove());
 }
 
 async function handleLogin(event) {
