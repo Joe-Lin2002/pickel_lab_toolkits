@@ -2,236 +2,82 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-
-  <meta
-    name="viewport"
-    content="width=device-width, initial-scale=1.0"
-  >
-
-  <title>Pickel Lab</title>
-
-  <link
-    rel="stylesheet"
-    href="/site.css?v=0.3-20260729"
-  >
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pickel Lab Toolkits</title>
+  <link rel="stylesheet" href="/site.css?v=1.1">
+  <link rel="stylesheet" href="/site-shell.css?v=1.1">
+  <script src="/site-shell.js?v=1.1" defer></script>
 </head>
-
 <body class="home-page">
-
-  <!-- Login screen -->
-
-  <main
-    id="login-view"
-    class="login-view"
-  >
+  <main id="login-view" class="login-view">
     <section class="login-card">
-
-      <div
-        class="lab-mark"
-        aria-hidden="true"
-      >
-        PL
-      </div>
-
-      <h1>Pickel Lab</h1>
-
+      <div class="lab-mark" aria-hidden="true">PL</div>
+      <h1>Pickel Lab Toolkits</h1>
       <p class="login-description">
-        Enter the lab access code to continue.
-        This device can remain signed in for up to 90 days.
+        Enter the lab access code to continue. This device can remain signed in for up to 90 days.
       </p>
 
       <form id="login-form">
-
-        <label for="access-code">
-          Access code
-        </label>
-
+        <label for="access-code">Access code</label>
         <div class="password-field">
-
-          <input
-            id="access-code"
-            type="password"
-            maxlength="100"
-            autocomplete="current-password"
-            required
-          >
-
-          <button
-            id="toggle-password"
-            class="password-toggle"
-            type="button"
-            aria-label="Show access code"
-          >
-            Show
-          </button>
-
+          <input id="access-code" type="password" maxlength="100" autocomplete="current-password" required>
+          <button id="toggle-password" class="password-toggle" type="button" aria-label="Show access code">Show</button>
         </div>
-
-        <p
-          id="login-error"
-          class="login-error"
-          role="alert"
-        ></p>
-
-        <button
-          id="login-button"
-          class="login-button"
-          type="submit"
-        >
-          Continue
-        </button>
-
+        <p id="login-error" class="login-error" role="alert"></p>
+        <button id="login-button" class="login-button" type="submit">Continue</button>
       </form>
 
-      <p class="cookie-note">
-        A secure browser cookie is used to remember this device.
-      </p>
-
+      <p class="cookie-note">A secure browser cookie is used to remember this device.</p>
     </section>
   </main>
 
-  <!-- Logged-in homepage -->
+  <div id="home-view" class="hidden">
+    <pickel-site-banner></pickel-site-banner>
 
-  <main
-    id="home-view"
-    class="home-view hidden"
-  >
-    <section class="home-card">
-
-      <header class="home-header">
-
-        <div>
-          <div
-            class="lab-mark home-lab-mark"
-            aria-hidden="true"
-          >
-            PL
+    <main class="home-view">
+      <section class="home-card">
+        <header class="home-header">
+          <div>
+            <div class="lab-mark home-lab-mark" aria-hidden="true">PL</div>
+            <h1>Pickel Lab Toolkits</h1>
+            <p>Select a toolkit to continue.</p>
           </div>
+        </header>
 
-          <h1>Pickel Lab</h1>
+        <nav class="tool-grid" aria-label="Pickel Lab Toolkits">
+          <a class="tool-card" href="/equipment-schedule.html">
+            <div class="tool-icon" aria-hidden="true">📅</div>
+            <div class="tool-content">
+              <h2>Equipment Schedule</h2>
+              <p>View equipment availability and create, edit, or delete reservations.</p>
+            </div>
+            <span class="tool-link">Open schedule →</span>
+          </a>
 
-          <p>
-            Select a tool to continue.
-          </p>
-        </div>
+          <a class="tool-card" href="/availability.html">
+            <div class="tool-icon" aria-hidden="true">👥</div>
+            <div class="tool-content">
+              <h2>Weekly Availability</h2>
+              <p>Enter your weekly availability and view the combined availability of the group.</p>
+            </div>
+            <span class="tool-link">Open availability →</span>
+          </a>
 
-        <button
-          id="logout-button"
-          class="logout-button"
-          type="button"
-        >
-          Forget this device
-        </button>
+          <a class="tool-card" href="/meeting-schedule.html">
+            <div class="tool-icon" aria-hidden="true">🗓️</div>
+            <div class="tool-content">
+              <h2>Meeting Schedule</h2>
+              <p>View the shared meeting calendar in weekly or monthly format.</p>
+            </div>
+            <span class="tool-link">Open meetings →</span>
+          </a>
+        </nav>
+      </section>
+    </main>
 
-      </header>
+    <pickel-site-footer></pickel-site-footer>
+  </div>
 
-      <nav
-        class="tool-grid"
-        aria-label="Pickel Lab tools"
-      >
-
-        <a
-          class="tool-card"
-          href="/equipment-schedule.html"
-        >
-          <div
-            class="tool-icon"
-            aria-hidden="true"
-          >
-            📅
-          </div>
-
-          <div class="tool-content">
-            <h2>
-              Equipment Schedule
-            </h2>
-
-            <p>
-              View equipment availability and create,
-              edit, or delete reservations.
-            </p>
-          </div>
-
-          <span class="tool-link">
-            Open schedule →
-          </span>
-        </a>
-
-        <a
-          class="tool-card"
-          href="/availability.html"
-        >
-          <div
-            class="tool-icon"
-            aria-hidden="true"
-          >
-            👥
-          </div>
-
-          <div class="tool-content">
-            <h2>
-              Weekly Availability
-            </h2>
-
-            <p>
-              Enter your weekly availability and view
-              the combined availability of the group.
-            </p>
-          </div>
-
-          <span class="tool-link">
-            Open availability →
-          </span>
-        </a>
-
-        <a
-          class="tool-card"
-          href="/meeting-schedule.html"
-        >
-
-          <div
-            class="tool-icon"
-            aria-hidden="true"
-          >
-            🗓️
-          </div>
-
-          <div class="tool-content">
-
-            <h2>
-              Meeting Schedule
-            </h2>
-
-            <p>
-              View the Pickel Lab meeting calendar
-              and upcoming group meetings.
-            </p>
-
-          </div>
-
-          <span class="tool-link">
-            Open meetings →
-          </span>
-
-        </a>
-
-      </nav>
-
-    </section>
-
-    <footer class="footer">
-      <span>
-        Developed by Junyi Lin
-      </span>
-
-      <span class="version-badge">
-        v1.0 · August 2, 2026
-      </span>
-    </footer>
-  </main>
-
-  <script
-    src="/home.js?v=0.2-20260729"
-  ></script>
+  <script src="/home.js?v=1.1"></script>
 </body>
 </html>
