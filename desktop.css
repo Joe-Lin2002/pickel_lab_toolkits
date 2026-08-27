@@ -1,0 +1,264 @@
+/* Pickel Lab Toolkits desktop density adjustments — v1.1 */
+
+@media (min-width: 900px) {
+  :root {
+    --page-padding: 24px;
+    --content-max-width: 1800px;
+  }
+
+  body {
+    font-size: 16px;
+  }
+
+  .app {
+    padding: 24px clamp(22px, 2.2vw, 38px) 30px;
+  }
+
+  .home-view {
+    width: min(1180px, 100%);
+    padding: 28px clamp(22px, 2.5vw, 38px);
+  }
+
+  .home-card {
+    padding: 34px;
+  }
+
+  .home-header {
+    margin-bottom: 28px;
+  }
+
+  .home-header h1 {
+    font-size: clamp(40px, 4vw, 54px);
+  }
+
+  .home-header p {
+    font-size: 18px;
+  }
+
+  .tool-grid,
+  .navigation {
+    gap: 14px;
+  }
+
+  .tool-card,
+  .navigation-card {
+    min-height: 220px;
+    padding: 24px;
+  }
+
+  .tool-card h2,
+  .navigation-card h2 {
+    font-size: 23px;
+  }
+
+  .tool-card p,
+  .navigation-card p {
+    font-size: 16px;
+  }
+
+  .tool-link,
+  .open-label {
+    font-size: 15px;
+  }
+
+  .page-title-block {
+    margin-bottom: 16px;
+  }
+
+  .page-title-block h1,
+  .header h1,
+  .page-header h1 {
+    font-size: 32px;
+  }
+
+  .page-title-block p,
+  .header p,
+  .page-header p {
+    font-size: 15px;
+  }
+
+  .site-banner-inner {
+    width: min(100%, 1800px);
+    min-height: 64px;
+    padding: 8px clamp(20px, 2.2vw, 38px);
+  }
+
+  .site-brand-mark {
+    width: 38px;
+    height: 38px;
+    font-size: 14px;
+  }
+
+  .site-brand-name {
+    font-size: 17px;
+  }
+
+  .site-nav-link {
+    min-height: 40px;
+    padding: 9px 14px;
+    font-size: 14px;
+  }
+
+  .site-logout-button {
+    min-height: 38px;
+    padding: 8px 12px;
+    font-size: 13px;
+  }
+
+  .site-footer-inner {
+    width: min(100%, 1800px);
+    padding: 12px clamp(20px, 2.2vw, 38px) 14px;
+    font-size: 13px;
+  }
+
+  .version-badge {
+    font-size: 11px;
+  }
+
+  .schedule-toolbar,
+  .controls-card,
+  .meeting-controls-card {
+    margin-bottom: 12px;
+  }
+
+  .date-controls button,
+  .date-controls input,
+  .member-controls select,
+  .member-controls button,
+  .editor-controls button,
+  .meeting-week-controls button,
+  .meeting-toolbar-right button,
+  .meeting-timezone-control select {
+    min-height: 42px;
+    font-size: 14px;
+  }
+
+  .member-controls label,
+  .control-label,
+  .meeting-timezone-control label {
+    font-size: 15px;
+  }
+
+  .mode-message,
+  .status-message {
+    font-size: 14px;
+  }
+
+  .last-updated-message,
+  .meeting-sync-status {
+    font-size: 12px;
+  }
+
+  .legend {
+    font-size: 13px;
+  }
+
+  .resource-name {
+    font-size: 14px;
+  }
+
+  .hour-label {
+    font-size: 12px;
+  }
+
+  .reservation-title {
+    font-size: 13px;
+  }
+
+  .reservation-details {
+    font-size: 11px;
+  }
+
+  .header-cell {
+    font-size: 14px;
+  }
+
+  .time-cell {
+    font-size: 12px;
+  }
+
+  .aggregate-count {
+    font-size: 11px;
+  }
+
+  .meeting-day-header strong {
+    font-size: 14px;
+  }
+
+  .meeting-day-header span {
+    font-size: 12px;
+  }
+
+  .meeting-card h3 {
+    font-size: 14px;
+  }
+
+  .meeting-time,
+  .meeting-location {
+    font-size: 12px;
+  }
+
+  .meeting-recurring {
+    font-size: 10px;
+  }
+
+  .meeting-month-weekday {
+    font-size: 12px;
+  }
+
+  .meeting-month-date {
+    font-size: 12px;
+  }
+
+  .meeting-month-event {
+    font-size: 11px;
+  }
+
+  .meeting-details-kicker {
+    font-size: 12px;
+  }
+
+  .meeting-details-header h2 {
+    font-size: 25px;
+  }
+
+  .meeting-details-list dt {
+    font-size: 13px;
+  }
+
+  .meeting-details-list dd {
+    font-size: 15px;
+  }
+
+  .login-view {
+    padding: 20px;
+  }
+
+  .login-card,
+  .access-panel {
+    width: min(470px, 100%);
+    padding: 36px;
+  }
+
+  .login-card h1,
+  .access-panel h1 {
+    font-size: 38px;
+  }
+
+  .login-description,
+  .access-description {
+    font-size: 16px;
+  }
+
+  .login-card label,
+  .access-panel label {
+    font-size: 15px;
+  }
+
+  .password-field input,
+  .login-button,
+  .access-submit {
+    min-height: 48px;
+    font-size: 16px;
+  }
+}
