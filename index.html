@@ -23,6 +23,12 @@
           <input id="access-code" type="password" maxlength="100" autocomplete="current-password" required>
           <button id="toggle-password" class="password-toggle" type="button" aria-label="Show access code">Show</button>
         </div>
+
+        <div id="recaptcha-section" class="recaptcha-section hidden" aria-live="polite">
+          <div id="recaptcha-widget" class="recaptcha-widget"></div>
+          <p id="recaptcha-status" class="recaptcha-status">Complete the verification before continuing.</p>
+        </div>
+
         <p id="login-error" class="login-error" role="alert"></p>
         <button id="login-button" class="login-button" type="submit">Continue</button>
       </form>
@@ -78,6 +84,6 @@
     <pickel-site-footer></pickel-site-footer>
   </div>
 
-  <script src="/home.js?v=1.1"></script>
+  <script src="/home.js?v=1.1-recaptcha"></script>
 </body>
 </html>
