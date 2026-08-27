@@ -1,0 +1,26 @@
+/* Pickel Lab Toolkits login reCAPTCHA */
+
+.recaptcha-section {
+  margin: 16px 0 4px;
+}
+
+.recaptcha-widget {
+  display: flex;
+  justify-content: center;
+  min-height: 78px;
+}
+
+.recaptcha-status {
+  margin: 7px 0 0;
+  color: var(--color-text-muted, #64748b);
+  font-size: 11px;
+  line-height: 1.35;
+  text-align: center;
+}
+
+@media (max-width: 380px) {
+  .recaptcha-widget {
+    justify-content: flex-start;
+    overflow-x: auto;
+  }
+}
