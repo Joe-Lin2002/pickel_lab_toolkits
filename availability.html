@@ -30,10 +30,10 @@
         <div class="timezone-control">
           <label for="timezone-select">Time zone</label>
           <select id="timezone-select">
-            <option value="America/New_York">Eastern Time</option>
-            <option value="America/Chicago">Central Time</option>
-            <option value="America/Denver">Mountain Time</option>
-            <option value="America/Los_Angeles">Pacific Time</option>
+            <option value="America/New_York">US Eastern Time</option>
+            <option value="America/Chicago">US Central Time</option>
+            <option value="America/Denver">US Mountain Time</option>
+            <option value="America/Los_Angeles">US Pacific Time</option>
           </select>
         </div>
       </div>
@@ -92,8 +92,13 @@
   <script>
     window.pickelAuth.requireAuth().then(authenticated => {
       if (!authenticated) return;
+
+      const timezoneLabelScript = document.createElement("script");
+      timezoneLabelScript.src = "/availability-timezone-labels.js?v=1.1-20260827";
+      document.body.appendChild(timezoneLabelScript);
+
       const script = document.createElement("script");
-      script.src = "/availability.js?v=1.1";
+      script.src = "/availability.js?v=1.1-20260827";
       document.body.appendChild(script);
     });
   </script>
