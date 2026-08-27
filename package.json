@@ -1,9 +1,10 @@
 {
-  "name": "pickel-lab-equipment-schedule",
-  "version": "0.1.0",
+  "name": "pickel-lab-schedule",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "dependencies": {
-    "@supabase/supabase-js": "^2.57.4"
+    "@supabase/supabase-js": "^2.57.4",
+    "ical-expander": "^3.2.0"
   }
 }
