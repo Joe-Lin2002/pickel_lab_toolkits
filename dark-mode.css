@@ -1,0 +1,354 @@
+/* Pickel Lab Toolkits — system dark mode overrides */
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --color-background: #0b1120;
+    --color-surface: #111827;
+    --color-surface-soft: #172033;
+    --color-text: #dbe4f0;
+    --color-text-strong: #f8fafc;
+    --color-text-muted: #94a3b8;
+    --color-text-light: #64748b;
+    --color-border: #334155;
+    --color-border-light: #263449;
+    --color-primary: #38bdf8;
+    --color-primary-hover: #7dd3fc;
+    --color-primary-light: #0c3048;
+    --color-focus: #38bdf8;
+    --color-danger: #f87171;
+    --color-danger-hover: #fca5a5;
+    --color-danger-light: #3b151b;
+    --shadow-card: 0 20px 60px rgb(0 0 0 / 40%);
+  }
+
+  html,
+  body,
+  .home-page {
+    color: var(--color-text) !important;
+    background: var(--color-background) !important;
+  }
+
+  .home-page {
+    background-image: linear-gradient(145deg, #0b1120 0%, #111827 50%, #0f172a 100%) !important;
+  }
+
+  h1,
+  h2,
+  h3,
+  .page-title-block h1,
+  .home-header h1,
+  .login-card h1,
+  .access-panel h1 {
+    color: var(--color-text-strong) !important;
+  }
+
+  .page-title-block p,
+  .home-header p,
+  .login-description,
+  .access-description,
+  .mode-message,
+  .last-updated-message,
+  .status-message,
+  .meeting-sync-status,
+  .legend,
+  .schedule-scroll-controls {
+    color: var(--color-text-muted) !important;
+  }
+
+  .login-card,
+  .access-panel,
+  .home-card,
+  .tool-card,
+  .controls-card,
+  .schedule-card,
+  .availability-card,
+  .meeting-controls-card,
+  dialog,
+  .meeting-details-dialog,
+  .availability-details {
+    color: var(--color-text) !important;
+    background: var(--color-surface) !important;
+    border-color: var(--color-border) !important;
+    box-shadow: var(--shadow-card);
+  }
+
+  input,
+  select,
+  textarea,
+  button,
+  dialog input,
+  dialog select,
+  .password-field input {
+    color: var(--color-text) !important;
+    background-color: var(--color-surface-soft) !important;
+    border-color: var(--color-border) !important;
+  }
+
+  input::placeholder,
+  textarea::placeholder {
+    color: var(--color-text-light) !important;
+  }
+
+  input:disabled,
+  select:disabled,
+  textarea:disabled,
+  dialog input:disabled {
+    color: #94a3b8 !important;
+    background-color: #0f172a !important;
+  }
+
+  .primary-button,
+  .save-button,
+  .login-button,
+  .access-submit {
+    color: #082f49 !important;
+    background: #38bdf8 !important;
+    border-color: #38bdf8 !important;
+  }
+
+  .primary-button:hover,
+  .save-button:hover,
+  .login-button:hover,
+  .access-submit:hover {
+    background: #7dd3fc !important;
+  }
+
+  .danger-button {
+    color: white !important;
+    background: #b91c1c !important;
+    border-color: #dc2626 !important;
+  }
+
+  .site-banner {
+    border-bottom-color: var(--color-border-light) !important;
+    background: rgb(15 23 42 / 94%) !important;
+    box-shadow: 0 1px 10px rgb(0 0 0 / 30%) !important;
+  }
+
+  .site-brand,
+  .site-brand-name {
+    color: var(--color-text-strong) !important;
+  }
+
+  .site-nav-link {
+    color: #cbd5e1 !important;
+  }
+
+  .site-nav-link:hover,
+  .site-nav-link.active {
+    color: #bae6fd !important;
+    background: #0c3048 !important;
+  }
+
+  .site-logout-button {
+    color: #cbd5e1 !important;
+    background: #111827 !important;
+    border-color: #334155 !important;
+  }
+
+  .site-logout-button:hover {
+    color: #fecaca !important;
+    background: #3b151b !important;
+    border-color: #7f1d1d !important;
+  }
+
+  .site-footer {
+    background: rgb(15 23 42 / 72%) !important;
+    border-top-color: var(--color-border-light) !important;
+  }
+
+  .site-footer-inner,
+  .footer {
+    color: var(--color-text-muted) !important;
+  }
+
+  .version-badge {
+    color: #cbd5e1 !important;
+    background: var(--color-surface-soft) !important;
+    border-color: var(--color-border) !important;
+  }
+
+  .tool-card,
+  .header-link,
+  .schedule-link,
+  .availability-link {
+    color: var(--color-text) !important;
+    background: var(--color-surface) !important;
+    border-color: var(--color-border) !important;
+  }
+
+  .tool-card:hover,
+  .header-link:hover,
+  .schedule-link:hover,
+  .availability-link:hover {
+    background: var(--color-surface-soft) !important;
+    border-color: #475569 !important;
+  }
+
+  .tool-card h2,
+  .tool-link {
+    color: #e0f2fe !important;
+  }
+
+  .tool-card p {
+    color: #94a3b8 !important;
+  }
+
+  .meeting-view-switch {
+    background: #0f172a !important;
+    border-color: var(--color-border) !important;
+  }
+
+  .meeting-view-button {
+    color: #94a3b8 !important;
+    background: transparent !important;
+  }
+
+  .meeting-view-button.active {
+    color: #bae6fd !important;
+    background: #1e293b !important;
+  }
+
+  .meeting-week,
+  .meeting-month-wrap,
+  .meeting-month-grid,
+  .meeting-day,
+  .meeting-month-day {
+    background: var(--color-surface) !important;
+    border-color: var(--color-border-light) !important;
+  }
+
+  .meeting-day.today,
+  .meeting-month-day.today {
+    background: #102237 !important;
+  }
+
+  .meeting-day-header,
+  .meeting-month-weekday {
+    color: #cbd5e1 !important;
+    background: #172033 !important;
+    border-color: var(--color-border) !important;
+  }
+
+  .meeting-month-day.outside-month {
+    background: #0f172a !important;
+  }
+
+  .meeting-month-date {
+    color: #cbd5e1 !important;
+  }
+
+  .meeting-month-day.outside-month .meeting-month-date {
+    color: #64748b !important;
+  }
+
+  .meeting-card,
+  .meeting-month-event,
+  .meeting-event-button {
+    color: #e2e8f0 !important;
+    background: #12263a !important;
+    border-color: #38bdf8 !important;
+  }
+
+  .meeting-card h3,
+  .meeting-month-event-title {
+    color: #f8fafc !important;
+  }
+
+  .meeting-time,
+  .meeting-month-event-time {
+    color: #7dd3fc !important;
+  }
+
+  .meeting-location,
+  .meeting-empty {
+    color: #94a3b8 !important;
+  }
+
+  .meeting-recurring {
+    color: #bae6fd !important;
+    background: #0c3048 !important;
+  }
+
+  .meeting-details-header,
+  .meeting-details-list > div {
+    border-color: var(--color-border-light) !important;
+  }
+
+  .meeting-details-list dt,
+  .meeting-details-kicker {
+    color: var(--color-text-muted) !important;
+  }
+
+  .meeting-details-list dd {
+    color: var(--color-text) !important;
+  }
+
+  .meeting-details-close {
+    color: #cbd5e1 !important;
+    background: #172033 !important;
+    border-color: #334155 !important;
+  }
+
+  .schedule,
+  .timeline,
+  .availability-table,
+  .table-cell,
+  .header-cell,
+  .time-cell {
+    color: var(--color-text) !important;
+    border-color: var(--color-border-light) !important;
+  }
+
+  .header-cell,
+  .time-cell,
+  .corner-cell {
+    background: #172033 !important;
+  }
+
+  .slot-cell,
+  .schedule-row,
+  .resource-cell,
+  .time-slot {
+    background-color: #111827 !important;
+    border-color: var(--color-border-light) !important;
+  }
+
+  .slot-cell:hover,
+  .time-slot:hover {
+    background-color: #1e293b !important;
+  }
+
+  .aggregate-count {
+    color: #e2e8f0 !important;
+    text-shadow: 0 1px 2px rgb(0 0 0 / 65%);
+  }
+
+  .availability-details-header,
+  .availability-member-group {
+    border-color: var(--color-border-light) !important;
+  }
+
+  .availability-member-group h3 {
+    color: var(--color-text-strong) !important;
+  }
+
+  .availability-member-group p,
+  .recaptcha-section,
+  .recaptcha-status,
+  .cookie-note,
+  .remember-note {
+    color: var(--color-text-muted) !important;
+  }
+
+  dialog::backdrop,
+  .meeting-details-dialog::backdrop {
+    background: rgb(0 0 0 / 68%) !important;
+  }
+
+  ::selection {
+    color: #082f49;
+    background: #7dd3fc;
+  }
+}
