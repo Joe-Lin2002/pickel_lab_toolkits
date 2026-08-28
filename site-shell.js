@@ -1,6 +1,7 @@
 "use strict";
 
 ensureDesktopStyles();
+ensureDarkModeStyles();
 
 const PICKEL_SITE_VERSION = "v1.1";
 const PICKEL_SITE_NAME = "Pickel Lab Toolkits";
@@ -19,6 +20,16 @@ function ensureDesktopStyles() {
   link.rel = "stylesheet";
   link.href = "/desktop.css?v=1.1-20260827";
   link.dataset.pickelDesktopStyles = "true";
+  document.head.appendChild(link);
+}
+
+function ensureDarkModeStyles() {
+  if (document.querySelector('link[data-pickel-dark-mode-styles="true"]')) return;
+
+  const link = document.createElement("link");
+  link.rel = "stylesheet";
+  link.href = "/dark-mode.css?v=1.1-20260827";
+  link.dataset.pickelDarkModeStyles = "true";
   document.head.appendChild(link);
 }
 
