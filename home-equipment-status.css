@@ -1,0 +1,172 @@
+/* Homepage equipment availability — Pickel Lab Toolkits */
+
+.equipment-status-section {
+  margin-top: 30px;
+  padding-top: 26px;
+  border-top: 1px solid var(--color-border-light, #dbe3ec);
+}
+
+.equipment-status-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 14px;
+}
+
+.equipment-status-heading h2 {
+  margin: 0;
+  font-size: 22px;
+  line-height: 1.2;
+}
+
+.equipment-status-heading p {
+  margin: 5px 0 0;
+  color: var(--color-text-muted, #64748b);
+  font-size: 14px;
+}
+
+.equipment-status-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.equipment-status-updated {
+  color: var(--color-text-muted, #64748b);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.equipment-status-refresh {
+  min-height: 34px;
+  padding: 7px 11px;
+  border: 1px solid var(--color-border, #cbd5e1);
+  border-radius: 7px;
+  color: #475569;
+  background: var(--color-surface, #fff);
+  font-weight: 600;
+}
+
+.equipment-status-refresh:hover {
+  border-color: #94a3b8;
+  background: var(--color-surface-soft, #f8fafc);
+}
+
+.equipment-status-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.equipment-status-card {
+  display: block;
+  min-width: 0;
+  padding: 17px 18px;
+  border: 1px solid var(--color-border-light, #dbe3ec);
+  border-radius: 12px;
+  color: inherit;
+  background: var(--color-surface-soft, #f8fafc);
+  text-decoration: none;
+  transition: border-color .15s ease, transform .15s ease, box-shadow .15s ease;
+}
+
+.equipment-status-card:hover {
+  transform: translateY(-1px);
+  border-color: #94a3b8;
+  box-shadow: 0 5px 14px rgb(15 23 42 / 8%);
+}
+
+.equipment-status-room {
+  margin: 0 0 11px;
+  color: var(--color-text-strong, #0f172a);
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.equipment-status-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.equipment-status-dot {
+  width: 10px;
+  height: 10px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: #94a3b8;
+}
+
+.equipment-status-card.available .equipment-status-state {
+  color: #15803d;
+}
+
+.equipment-status-card.available .equipment-status-dot {
+  background: #22c55e;
+  box-shadow: 0 0 0 4px rgb(34 197 94 / 13%);
+}
+
+.equipment-status-card.in-use .equipment-status-state {
+  color: #b45309;
+}
+
+.equipment-status-card.in-use .equipment-status-dot {
+  background: #f59e0b;
+  box-shadow: 0 0 0 4px rgb(245 158 11 / 14%);
+}
+
+.equipment-status-card.unavailable .equipment-status-state {
+  color: var(--color-text-muted, #64748b);
+}
+
+.equipment-status-detail {
+  min-height: 18px;
+  margin: 8px 0 0;
+  color: var(--color-text-muted, #64748b);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.equipment-status-error {
+  margin: 10px 0 0;
+  color: var(--color-danger, #b91c1c);
+  font-size: 13px;
+}
+
+@media (max-width: 780px) {
+  .equipment-status-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .equipment-status-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .equipment-status-actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  .equipment-status-card.available .equipment-status-state {
+    color: #86efac;
+  }
+
+  .equipment-status-card.in-use .equipment-status-state {
+    color: #fcd34d;
+  }
+
+  .equipment-status-refresh {
+    color: var(--color-text, #dbe4f0);
+  }
+
+  .equipment-status-card:hover {
+    border-color: #475569;
+    box-shadow: 0 5px 16px rgb(0 0 0 / 28%);
+  }
+}
