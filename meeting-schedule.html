@@ -54,6 +54,7 @@
             </select>
           </div>
 
+          <button id="subscribe-calendar" type="button">＋ Subscribe</button>
           <button id="refresh-meetings" type="button">↻ Refresh</button>
         </div>
       </div>
@@ -108,9 +109,14 @@
   <script>
     window.pickelAuth.requireAuth().then(authenticated => {
       if (!authenticated) return;
-      const script = document.createElement("script");
-      script.src = "/meeting-schedule.js?v=1.1.1";
-      document.body.appendChild(script);
+
+      const meetingScript = document.createElement("script");
+      meetingScript.src = "/meeting-schedule.js?v=1.1.1";
+      document.body.appendChild(meetingScript);
+
+      const subscriptionScript = document.createElement("script");
+      subscriptionScript.src = "/calendar-subscribe.js?v=1.1.1";
+      document.body.appendChild(subscriptionScript);
     });
   </script>
 </body>
