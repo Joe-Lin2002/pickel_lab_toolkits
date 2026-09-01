@@ -7,6 +7,7 @@
   <link rel="stylesheet" href="/site.css?v=1.1">
   <link rel="stylesheet" href="/site-shell.css?v=1.1">
   <link rel="stylesheet" href="/recaptcha.css?v=1.1">
+  <link rel="stylesheet" href="/home-equipment-status.css?v=1.1">
   <script src="/site-shell.js?v=1.1" defer></script>
 </head>
 <body class="home-page">
@@ -79,6 +80,23 @@
             <span class="tool-link">Open schedule →</span>
           </a>
         </nav>
+
+        <section class="equipment-status-section" aria-labelledby="equipment-status-title">
+          <div class="equipment-status-header">
+            <div class="equipment-status-heading">
+              <h2 id="equipment-status-title">Equipment Status</h2>
+              <p>Current reservation-based availability of all instrument rooms.</p>
+            </div>
+
+            <div class="equipment-status-actions">
+              <span id="equipment-status-updated" class="equipment-status-updated"></span>
+              <button id="equipment-status-refresh" class="equipment-status-refresh" type="button">↻ Refresh</button>
+            </div>
+          </div>
+
+          <div id="equipment-status-grid" class="equipment-status-grid" aria-live="polite"></div>
+          <p id="equipment-status-error" class="equipment-status-error" role="status"></p>
+        </section>
       </section>
     </main>
 
@@ -86,5 +104,6 @@
   </div>
 
   <script src="/home.js?v=1.1-recaptcha"></script>
+  <script src="/home-equipment-status.js?v=1.1"></script>
 </body>
 </html>
