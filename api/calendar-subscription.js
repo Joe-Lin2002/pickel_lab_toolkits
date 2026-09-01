@@ -48,11 +48,28 @@ export default async function handler(request, response) {
     });
   }
 
-  const webcalUrl = new URL(parsedUrl.toString());
-  webcalUrl.protocol = "webcal:";
+  /*
+    Do not mutate URL.protocol from https: to webcal: here.
+
+    WHATWG URL treats http/https as "special" schemes and may refuse a
+    protocol mutation to the non-special webcal scheme. In that case the
+    resulting URL silently remains https://..., which the client correctly
+    rejects as an invalid subscription URL.
+
+    Build the webcal URL explicitly from the already-validated HTTP(S) URL.
+  */
+  const normalizedHttpUrl = parsedUrl.toString();
+  const webcalUrl = normalizedHttpUrl.replace(/^https?:\/\//i, "webcal://");
+
+  if (!webcalUrl.startsWith("webcal://")) {
+    return response.status(500).json({
+      error: "Could not create the calendar subscription URL.",
+    });
+  }
 
   return response.status(200).json({
-    subscription_url: webcalUrl.toString(),
+    subscription_url: webcalUrl,
+    source_url: normalizedHttpUrl,
   });
 }
 
