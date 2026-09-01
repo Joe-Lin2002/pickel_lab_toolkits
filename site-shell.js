@@ -7,7 +7,7 @@ const PICKEL_SITE_VERSION = "v1.1";
 const PICKEL_SITE_NAME = "Pickel Lab Toolkits";
 
 const PICKEL_NAV_ITEMS = [
-  { href: "/", label: "Home", match: "/" },
+  { href: "/", label: "Dashboard", match: "/" },
   { href: "/equipment-schedule.html", label: "Equipment", match: "/equipment-schedule.html" },
   { href: "/availability.html", label: "Availability", match: "/availability.html" },
   { href: "/meeting-schedule.html", label: "Meetings", match: "/meeting-schedule.html" },
@@ -49,7 +49,7 @@ class PickelSiteBanner extends HTMLElement {
     const brand = document.createElement("a");
     brand.className = "site-brand";
     brand.href = "/";
-    brand.setAttribute("aria-label", `${PICKEL_SITE_NAME} home`);
+    brand.setAttribute("aria-label", `${PICKEL_SITE_NAME} dashboard`);
 
     const mark = document.createElement("span");
     mark.className = "site-brand-mark";
