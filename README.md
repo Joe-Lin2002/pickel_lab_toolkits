@@ -134,6 +134,7 @@ The production deployment depends on the following environment variables.
 | `MEETING_ICS_URL` | Published Outlook/Microsoft 365 ICS calendar URL | Treat as private |
 | `RECAPTCHA_SITE_KEY` | Google reCAPTCHA v2 site key | No |
 | `RECAPTCHA_SECRET_KEY` | Google reCAPTCHA v2 server verification key | **Yes** |
+| `CRON_SECRET` | Secret used by Vercel Cron to authorize the Supabase keep-alive endpoint | **Yes** |
 
 Configure these in:
 
@@ -414,7 +415,35 @@ Vercel maps the filename directly to `/api/meetings`. Renaming it to `meeting.js
 
 ---
 
-## 10. Styling and responsive layout
+## 10. Supabase Free-plan keep-alive
+
+Supabase Free projects can be automatically paused after a period of low database activity. This repository includes a small scheduled keep-alive so an otherwise quiet lab site still generates legitimate application database traffic.
+
+### How it works
+
+- `vercel.json` schedules `GET /api/keepalive` once per day at **15:00 UTC**.
+- Vercel includes `Authorization: Bearer <CRON_SECRET>` when `CRON_SECRET` is configured in the project.
+- `api/keepalive.js` rejects requests that do not contain the correct secret.
+- A successful run performs three minimal read-only queries against the `reservations` table.
+- The job never inserts, updates, or deletes lab data.
+
+This is intentionally lightweight. It is not a replacement for a paid Supabase plan when guaranteed availability, backups, or production-level support are required.
+
+### Required setup
+
+Add a strong random value named:
+
+```text
+CRON_SECRET
+```
+
+in **Vercel Project → Settings → Environment Variables**, then redeploy Production. Without this variable, the cron endpoint intentionally returns a configuration error.
+
+To verify the job, open the Vercel project and check the Cron/Functions logs after the scheduled run. A successful invocation returns HTTP 200 and logs the completion timestamp.
+
+---
+
+## 11. Styling and responsive layout
 
 The styling is split across several files:
 
@@ -435,7 +464,7 @@ Mobile-specific rules remain in the shared styles. Any large layout change shoul
 
 ---
 
-## 11. Deployment workflow
+## 12. Deployment workflow
 
 The normal production workflow is:
 
@@ -466,7 +495,7 @@ When a user appears to be loading stale JavaScript/CSS after a deployment, incre
 
 ---
 
-## 12. Local development
+## 13. Local development
 
 Because this project relies on Vercel Functions, the easiest local environment is the Vercel CLI rather than opening the HTML files directly.
 
@@ -483,7 +512,7 @@ A direct static-file server can display the frontend, but API-dependent features
 
 ---
 
-## 13. Maintenance checklist
+## 14. Maintenance checklist
 
 When taking ownership of this project, verify access to:
 
@@ -508,7 +537,7 @@ Before making a major change:
 
 ---
 
-## 14. Troubleshooting guide
+## 15. Troubleshooting guide
 
 ### Login works on one device but not another
 
@@ -567,9 +596,13 @@ Open the published Outlook ICS URL separately and confirm it still exists and re
 
 Perform a hard browser refresh and check the static-file version query strings.
 
+### Supabase project is still being paused
+
+Check that `CRON_SECRET` exists in the Production environment, redeploy after adding it, and confirm that Vercel registered the cron from `vercel.json`. Then inspect the `/api/keepalive` Function logs for a daily HTTP 200 response. If the keep-alive runs successfully but Supabase still classifies the project as inactive, increase genuine application usage or move the project to a paid plan rather than making the keep-alive more aggressive.
+
 ---
 
-## 15. Security notes
+## 16. Security notes
 
 This application is an internal coordination tool, not an identity-management system.
 
@@ -587,7 +620,7 @@ Other important rules:
 
 ---
 
-## 16. Versioning
+## 17. Versioning
 
 The displayed site version is currently maintained in `site-shell.js`:
 
@@ -601,7 +634,7 @@ When releasing a meaningful update, it is good practice to update both if the ve
 
 ---
 
-## 17. Current ownership handoff
+## 18. Current ownership handoff
 
 This project was developed for Pickel Lab as an internal utility. Future maintainers should treat this repository, Vercel configuration, Supabase data, Outlook calendar publication settings, and Google reCAPTCHA account/configuration as one system: losing access to any one of those services may break part of the website even if the GitHub code itself is unchanged.
 
